@@ -7,10 +7,30 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
-import { ThirdwebProvider } from "thirdweb/react";
+import { AutoConnect, ThirdwebProvider } from "thirdweb/react";
 
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { client } from "@/constants/thirdweb";
+import { inAppWallet } from "thirdweb/wallets";
+import AppInitializer from "@/components/AppInitializer";
+import { AgentWalletProvider } from "@/context/AgentWalletContext";
 
+const wallets = [
+  inAppWallet({
+	auth: {
+	  options: [
+		"google",
+		"facebook",
+		"discord",
+		"telegram",
+		"email",
+		"phone",
+		"guest",
+	  ],
+	  passkeyDomain: "thirdweb.com",
+	},
+  }),
+];
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
@@ -32,12 +52,17 @@ export default function RootLayout() {
 
 	return (
 		<ThirdwebProvider>
+			<AutoConnect wallets={wallets} client={client}/>
+      <AgentWalletProvider>
+			<AppInitializer	/>
 			<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
 				<Stack>
 					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 					<Stack.Screen name="+not-found" />
 				</Stack>
 			</ThemeProvider>
+			</AgentWalletProvider>
+
 		</ThirdwebProvider>
 	);
 }

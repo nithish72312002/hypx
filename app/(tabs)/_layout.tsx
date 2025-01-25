@@ -28,6 +28,18 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
+				name="market"
+				options={{
+					title: "market",
+					tabBarIcon: ({ color, focused }) => (
+						<TabBarIcon
+							name={focused ? "wallet" : "wallet-outline"}
+							color={color}
+						/>
+					),
+				}}
+			/>
+			<Tabs.Screen
 				name="read"
 				options={{
 					title: "Read",

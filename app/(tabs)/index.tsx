@@ -35,36 +35,14 @@ const wallets = [
         "telegram",
         "email",
         "phone",
-        "passkey",
+        "guest",
       ],
       passkeyDomain: "thirdweb.com",
     },
-    smartAccount: {
-      chain: baseSepolia,
-      sponsorGas: true,
-    },
   }),
-  createWallet("io.metamask"),
-  createWallet("com.coinbase.wallet", {
-    appMetadata: {
-      name: "Thirdweb RN Demo",
-    },
-    mobileConfig: {
-      callbackURL: "https://thirdweb.com",
-    },
-    walletConfig: {
-      options: "smartWalletOnly",
-    },
-  }),
-  createWallet("me.rainbow"),
-  createWallet("com.trustwallet.app"),
-  createWallet("io.zerion.wallet"),
 ];
 
-const thirdwebAuth = createAuth({
-  domain: "localhost:3000",
-  client,
-});
+
 
 // fake login state, this should be returned from the backend
 let isLoggedIn = false;
@@ -93,49 +71,14 @@ export default function HomeScreen() {
           enabled.
         </ThemedText>
       </View>
-      <ConnectButton
-        client={client}
-        theme={theme || "dark"}
-        wallets={wallets}
-        chain={baseSepolia}
-      />
+      
       <View style={{ gap: 2 }}>
         <ThemedText type="subtitle">{`Themed <ConnectButton />`}</ThemedText>
         <ThemedText type="subtext">
           Styled the Connect Button to match your app.
         </ThemedText>
       </View>
-      <ConnectButton
-        client={client}
-        theme={lightTheme({
-          colors: {
-            primaryButtonBg: "#1e8449",
-            modalBg: "#1e8449",
-            borderColor: "#196f3d",
-            accentButtonBg: "#196f3d",
-            primaryText: "#ffffff",
-            secondaryIconColor: "#a7b8b9",
-            secondaryText: "#a7b8b9",
-            secondaryButtonBg: "#196f3d",
-          },
-        })}
-        wallets={[
-          createWallet("io.metamask"),
-          createWallet("com.coinbase.wallet"),
-          createWallet("me.rainbow"),
-          createWallet("com.trustwallet.app"),
-          createWallet("io.zerion.wallet"),
-          createWallet("xyz.argent"),
-          createWallet("com.okex.wallet"),
-          createWallet("com.zengo")
-        ]}
-        connectButton={{
-          label: "Sign in to ✨ MyApp",
-        }}
-        connectModal={{
-          title: "✨ MyApp Login",
-        }}
-      />
+      
       <View style={{ height: 16 }} />
       <View style={{ gap: 2 }}>
         <ThemedText type="subtitle">{`<ConnectEmbed />`}</ThemedText>
@@ -144,29 +87,7 @@ export default function HomeScreen() {
           configured with a specific list of EOAs + SIWE.
         </ThemedText>
       </View>
-      <ConnectEmbed
-        client={client}
-        theme={theme || "dark"}
-        chain={ethereum}
-        wallets={wallets}
-        auth={{
-          async doLogin(params) {
-            // fake delay
-            await new Promise((resolve) => setTimeout(resolve, 2000));
-            const verifiedPayload = await thirdwebAuth.verifyPayload(params);
-            isLoggedIn = verifiedPayload.valid;
-          },
-          async doLogout() {
-            isLoggedIn = false;
-          },
-          async getLoginPayload(params) {
-            return thirdwebAuth.generatePayload(params);
-          },
-          async isLoggedIn(address) {
-            return isLoggedIn;
-          },
-        }}
-      />
+      
       {account && (
         <ThemedText type="subtext">
           ConnectEmbed does not render when connected, use the `onConnect` prop
