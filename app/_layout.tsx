@@ -1,6 +1,7 @@
 import {
 	DarkTheme,
 	DefaultTheme,
+	NavigationContainer,
 	ThemeProvider,
 } from "@react-navigation/native";
 import { useFonts } from "expo-font";
@@ -14,6 +15,9 @@ import { client } from "@/constants/thirdweb";
 import { inAppWallet } from "thirdweb/wallets";
 import AppInitializer from "@/components/AppInitializer";
 import { AgentWalletProvider } from "@/context/AgentWalletContext";
+import { HyperliquidProvider } from "@/context/HyperliquidContext";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Slot } from 'expo-router';
 
 const wallets = [
   inAppWallet({
@@ -51,18 +55,24 @@ export default function RootLayout() {
 	}
 
 	return (
+		<GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+
 		<ThirdwebProvider>
 			<AutoConnect wallets={wallets} client={client}/>
       <AgentWalletProvider>
 			<AppInitializer	/>
+			<HyperliquidProvider>
 			<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
 				<Stack>
+					<Slot/>
 					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 					<Stack.Screen name="+not-found" />
 				</Stack>
 			</ThemeProvider>
+			</HyperliquidProvider>
 			</AgentWalletProvider>
 
-		</ThirdwebProvider>
+		</ThirdwebProvider></NavigationContainer></GestureHandlerRootView>
 	);
 }
