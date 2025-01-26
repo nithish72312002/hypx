@@ -174,7 +174,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#F5F6FA",
-    padding: 16,
+	  marginTop: 20,
+    padding: 10,
+	paddingHorizontal: 16,
   },
   header: {
     backgroundColor: "#fff",
@@ -197,7 +199,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   activeTab: {
-    backgroundColor: "#0052FF",
+    backgroundColor: "#AB47BC",
   },
   tabText: {
     color: "#666",
@@ -241,7 +243,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   actionText: {
-    color: "#0052FF",
+    color: "#AB47BC",
     fontWeight: "500",
   },
   sectionTitle: {

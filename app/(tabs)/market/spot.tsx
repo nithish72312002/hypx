@@ -56,7 +56,7 @@ const SpotInfoPage: React.FC = () => {
   useEffect(() => {
     const fetchTokenMapping = async () => {
       try {
-        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
+        const response = await axios.post("https://api.hyperliquid.xyz/info", {
           type: "spotMetaAndAssetCtxs",
         });
 
@@ -128,7 +128,7 @@ const SpotInfoPage: React.FC = () => {
       <TouchableOpacity onPress={() => onPress(item.id)}>
         <View style={styles.tokenRow}>
           <View style={styles.tokenColumn}>
-            <Text style={styles.tokenName}>{item.name}</Text>
+            <Text style={styles.tokenName}>{item.name}/USDC</Text>
             <Text style={styles.tokenVolume}>{item.volume.toFixed(2)} Vol</Text>
           </View>
           <View style={styles.priceColumn}>
@@ -189,25 +189,31 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 10,
     backgroundColor: "#000",
+    
   },
   headerRow: {
     flexDirection: "row",
+    backgroundColor: "#000",
+
     justifyContent: "space-between",
     paddingVertical: 5,
     marginBottom: 5,
   },
   headerText: {
+  paddingHorizontal: 10,
     fontSize: 14,
     fontWeight: "bold",
-    color: "#aaa",
+    color: "#fff",
   },
   nameColumn: {
+    paddingHorizontal: 5,
     flex: 2,
     textAlign: "left",
   },
   priceColumn: {
+    paddingHorizontal: 15,
     flex: 1,
-    textAlign: "center",
+    textAlign: "right",
   },
   changeColumn: {
     flex: 1,
@@ -216,26 +222,29 @@ const styles = StyleSheet.create({
   tokenRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#222",
+    padding: 10,
+
   },
   tokenColumn: {
     flex: 2,
   },
   tokenName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#fff",
   },
   tokenVolume: {
     fontSize: 12,
-    color: "#888",
+    color: "#fff",
   },
   tokenPrice: {
     fontSize: 14,
+    paddingTop: 6,
+    paddingHorizontal: 4,
+
     color: "#fff",
-    textAlign: "center",
+    fontWeight: "bold",
+    textAlign: "right",
   },
   tokenChange: {
     fontSize: 14,
@@ -243,10 +252,23 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   positiveChange: {
-    color: "green",
+    color: "white", // Text color
+    backgroundColor: "green", // Background color
+    paddingVertical: 8, // Vertical padding for button-like structure
+    paddingHorizontal: 16, // Horizontal padding for button-like structure
+    borderRadius: 8, // Rounded corners
+    textAlign: "center", // Center-align the text
+    fontWeight: "bold", // Bold text for better visibility
   },
+  
   negativeChange: {
-    color: "red",
+    color: "white", // Text color
+    backgroundColor: "red", // Background color
+    paddingVertical: 8, // Vertical padding for button-like structure
+    paddingHorizontal: 16, // Horizontal padding for button-like structure
+    borderRadius: 8, // Rounded corners
+    textAlign: "center", // Center-align the text
+    fontWeight: "bold", // Bold text for better visibility
   },
   loadingText: {
     fontSize: 16,

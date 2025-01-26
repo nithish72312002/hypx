@@ -20,6 +20,7 @@
 		"@react-native-community/netinfo": "11.3.1",
 		"@react-navigation/native": "^6.0.2",
 		"@thirdweb-dev/react-native-adapter": "^1.5.1",
+		"@walletconnect/react-native-compat": "^2.17.5",
 		"amazon-cognito-identity-js": "^6.3.12",
 		"axios": "^1.7.9",
 		"ethers": "^6.13.5",
@@ -35,6 +36,7 @@
 		"expo-status-bar": "~1.12.1",
 		"expo-system-ui": "~3.0.4",
 		"expo-web-browser": "~13.0.3",
+		"hyperliquid": "^1.5.8",
 		"react": "18.2.0",
 		"react-dom": "18.2.0",
 		"react-native": "0.74.5",
@@ -53,7 +55,7 @@
 		"react-native-svg": "15.2.0",
 		"react-native-tab-view": "^4.0.5",
 		"react-native-web": "0.19.12",
-		"thirdweb": "^5.72.0"
+		"thirdweb": "^5.86.2"
 	},
 	"devDependencies": {
 		"@babel/core": "^7.20.0",

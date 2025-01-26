@@ -43,13 +43,15 @@ const MarketLayout: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    marginTop: 20,
+
     backgroundColor: "#000",
   },
   tabBar: {
-    backgroundColor: "#222",
+    backgroundColor: "#000",
   },
   indicator: {
-    backgroundColor: "#fff",
+    backgroundColor: "#AB47BC",
     height: 3,
   },
   tabLabel: {

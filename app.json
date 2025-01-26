@@ -16,8 +16,8 @@
 			"supportsTablet": true,
 			"bundleIdentifier": "com.thirdweb.demo",
 			"associatedDomains": [
-				"webcredentials:thirdweb.com",
-				"applinks:thirdweb.com"
+				"webcredentials:verify.hypx.xyz",
+				"applinks:verify.hypx.xyz"
 			]
 		},
 		"android": {
@@ -32,7 +32,7 @@
 					"action": "VIEW",
 					"data": {
 						"scheme": "https",
-						"host": "thirdweb.com"
+						"host": "verify.hypx.xyz",
 					},
 					"category": ["BROWSABLE", "DEFAULT"]
 				}

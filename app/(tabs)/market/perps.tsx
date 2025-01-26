@@ -14,7 +14,8 @@ interface PerpTokenData {
   name: string;
   price: number;
   volume: number;
-  change: number; // 24-hour change percentage
+  change: number;
+  leverage: number; // Add leverage property
 }
 
 const PerpPage: React.FC = () => {
@@ -38,12 +39,11 @@ const PerpPage: React.FC = () => {
         const formattedTokens = meta.universe
           .map((token: any, index: number) => {
             const ctx = assetCtxs[index] || {};
-            const { markPx, dayBaseVlm, prevDayPx } = ctx;
+            const { markPx, dayBaseVlm, prevDayPx,  } = ctx;
 
             const price = markPx !== undefined ? parseFloat(markPx) : 0;
             const volume = dayBaseVlm !== undefined ? parseFloat(dayBaseVlm) : 0;
             const prevPrice = prevDayPx !== undefined ? parseFloat(prevDayPx) : 0;
-
             const change = prevPrice > 0 ? ((price - prevPrice) / prevPrice) * 100 : 0;
 
             return {
@@ -51,6 +51,8 @@ const PerpPage: React.FC = () => {
               price,
               volume,
               change,
+              leverage: token.maxLeverage || 0, // Include maxLeverage from meta.universe
+
             };
           })
           .filter((token: PerpTokenData) => token.volume > 0); // Exclude tokens with volume = 0
@@ -74,7 +76,9 @@ const PerpPage: React.FC = () => {
       <TouchableOpacity onPress={() => onPress(item.name)}>
         <View style={styles.tokenRow}>
           <View style={styles.tokenColumn}>
-            <Text style={styles.tokenName}>{item.name}</Text>
+          <Text style={styles.tokenName}>
+            {item.name}/USDC <Text style={styles.tokenLeverage}>x{item.leverage}</Text>
+          </Text>            
             <Text style={styles.tokenVolume}>{item.volume.toFixed(2)} Vol</Text>
           </View>
           <View style={styles.priceColumn}>
@@ -135,25 +139,36 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 10,
     backgroundColor: "#000",
+    
   },
   headerRow: {
     flexDirection: "row",
+    backgroundColor: "#000",
+
     justifyContent: "space-between",
     paddingVertical: 5,
     marginBottom: 5,
   },
   headerText: {
+paddingHorizontal: 10,
     fontSize: 14,
     fontWeight: "bold",
-    color: "#aaa",
+    color: "#fff",
   },
   nameColumn: {
+    paddingHorizontal: 5,
     flex: 2,
     textAlign: "left",
   },
   priceColumn: {
+    paddingHorizontal: 15,
     flex: 1,
-    textAlign: "center",
+    textAlign: "right",
+  },
+  tokenLeverage: {
+    fontSize: 12,
+    color: "#888", // Subtle grey color
+    fontWeight: "500",
   },
   changeColumn: {
     flex: 1,
@@ -162,26 +177,29 @@ const styles = StyleSheet.create({
   tokenRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#222",
+    padding: 10,
+
   },
   tokenColumn: {
     flex: 2,
   },
   tokenName: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "bold",
     color: "#fff",
   },
   tokenVolume: {
     fontSize: 12,
-    color: "#888",
+    color: "#fff",
   },
   tokenPrice: {
     fontSize: 14,
+    paddingTop: 6,
+    paddingHorizontal: 4,
+
     color: "#fff",
-    textAlign: "center",
+    fontWeight: "bold",
+    textAlign: "right",
   },
   tokenChange: {
     fontSize: 14,
@@ -189,10 +207,23 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   positiveChange: {
-    color: "green",
+    color: "white", // Text color
+    backgroundColor: "green", // Background color
+    paddingVertical: 8, // Vertical padding for button-like structure
+    paddingHorizontal: 16, // Horizontal padding for button-like structure
+    borderRadius: 8, // Rounded corners
+    textAlign: "center", // Center-align the text
+    fontWeight: "bold", // Bold text for better visibility
   },
+  
   negativeChange: {
-    color: "red",
+    color: "white", // Text color
+    backgroundColor: "red", // Background color
+    paddingVertical: 8, // Vertical padding for button-like structure
+    paddingHorizontal: 16, // Horizontal padding for button-like structure
+    borderRadius: 8, // Rounded corners
+    textAlign: "center", // Center-align the text
+    fontWeight: "bold", // Bold text for better visibility
   },
   loadingText: {
     fontSize: 16,

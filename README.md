@@ -1,7 +1,7 @@
 ![Banner](https://github.com/thirdweb-example/thirdweb-auth-express/assets/17715009/06383e68-9c65-4265-8505-e88e573443f9)
 # thirdweb expo starter
 
-Starter template to build an onchain react native app with [thirdweb](https://thirdweb.com/) and [expo](https://expo.dev/).
+Starter template to build an onchain react native app with [thirdweb](https://verify.hypx.xyz/) and [expo](https://expo.dev/).
 
 ### Features
 
@@ -14,7 +14,7 @@ Starter template to build an onchain react native app with [thirdweb](https://th
 
 ## Installation
 
-Install the template using [thirdweb create](https://portal.thirdweb.com/cli/create)
+Install the template using [thirdweb create](https://portal.verify.hypx.xyz/cli/create)
 
 ```bash
   npx thirdweb create app --expo
@@ -32,7 +32,7 @@ yarn install
 
 Rename the `.env.example` file to `.env` and paste in your thirdweb client id.
 
-You can obtain a free client id from the [thirdweb dashboard](https://thirdweb.com/dashboard/settings).
+You can obtain a free client id from the [thirdweb dashboard](https://verify.hypx.xyz/dashboard/settings).
 
 3. Prebuild the ios and android directories
 
@@ -80,10 +80,10 @@ Then run `npx expo prebuild` to update the native modules with the new OpenSSL v
 
 ## Additional Resources
 
-- [Documentation](https://portal.thirdweb.com/typescript/v5)
-- [Templates](https://thirdweb.com/templates)
+- [Documentation](https://portal.verify.hypx.xyz/typescript/v5)
+- [Templates](https://verify.hypx.xyz/templates)
 - [YouTube](https://www.youtube.com/c/thirdweb)
 
 ## Support
 
-For help or feedback, please [visit our support site](https://thirdweb.com/support)
+For help or feedback, please [visit our support site](https://verify.hypx.xyz/support)

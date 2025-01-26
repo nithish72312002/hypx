@@ -9,8 +9,7 @@ import {
   useDisconnect,
   useActiveWallet,
   ConnectButton,
-  lightTheme,
-  ConnectEmbed,
+
 } from "thirdweb/react";
 import {
   getUserEmail,
@@ -21,9 +20,7 @@ import { chain, client } from "@/constants/thirdweb";
 import { shortenAddress } from "thirdweb/utils";
 import { ThemedButton } from "@/components/ThemedButton";
 import { useEffect, useState } from "react";
-import { createWallet } from "thirdweb/wallets";
-import { baseSepolia, ethereum } from "thirdweb/chains";
-import { createAuth } from "thirdweb/auth";
+
 
 const wallets = [
   inAppWallet({
@@ -36,8 +33,9 @@ const wallets = [
         "email",
         "phone",
         "guest",
+        "passkey",
       ],
-      passkeyDomain: "thirdweb.com",
+      passkeyDomain: "verify.hypx.xyz",
     },
   }),
 ];
@@ -45,7 +43,6 @@ const wallets = [
 
 
 // fake login state, this should be returned from the backend
-let isLoggedIn = false;
 
 export default function HomeScreen() {
   const account = useActiveAccount();
@@ -60,48 +57,9 @@ export default function HomeScreen() {
         />
       }
     >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Connecting Wallets</ThemedText>
-      </ThemedView>
-      <View style={{ gap: 2 }}>
-        <ThemedText type="subtitle">{`<ConnectButton />`}</ThemedText>
-        <ThemedText type="subtext">
-          Configurable button + modal, handles both connection and connected
-          state. Example below has Smart Accounts + sponsored transactions
-          enabled.
-        </ThemedText>
-      </View>
+      <ConnectButton client={client} wallets={wallets} />
       
-      <View style={{ gap: 2 }}>
-        <ThemedText type="subtitle">{`Themed <ConnectButton />`}</ThemedText>
-        <ThemedText type="subtext">
-          Styled the Connect Button to match your app.
-        </ThemedText>
-      </View>
       
-      <View style={{ height: 16 }} />
-      <View style={{ gap: 2 }}>
-        <ThemedText type="subtitle">{`<ConnectEmbed />`}</ThemedText>
-        <ThemedText type="subtext">
-          Embeddable connection component in any screen. Example below is
-          configured with a specific list of EOAs + SIWE.
-        </ThemedText>
-      </View>
-      
-      {account && (
-        <ThemedText type="subtext">
-          ConnectEmbed does not render when connected, use the `onConnect` prop
-          to navigate to a new screen instead.
-        </ThemedText>
-      )}
-      <View style={{ height: 16 }} />
-      <View style={{ gap: 2 }}>
-        <ThemedText type="subtitle">{`useConnect()`}</ThemedText>
-        <ThemedText type="subtext">
-          Hooks to build your own UI. Example below connects to a smart Google
-          account or metamask EOA.
-        </ThemedText>
-      </View>
       <CustomConnectUI />
     </ParallaxScrollView>
   );
@@ -127,31 +85,27 @@ const CustomConnectUI = () => {
     </View>
   ) : (
     <>
-      <ConnectWithGoogle />
-      <ConnectWithMetaMask />
+      <Connectasguest />
       <ConnectWithPasskey />
     </>
   );
 };
 
-const ConnectWithGoogle = () => {
+const Connectasguest = () => {
   const { connect, isConnecting } = useConnect();
   return (
     <ThemedButton
-      title="Connect with Google"
+      title="Connect as guest"
       loading={isConnecting}
       loadingTitle="Connecting..."
       onPress={() => {
         connect(async () => {
           const w = inAppWallet({
-            smartAccount: {
-              chain,
-              sponsorGas: true,
-            },
+           
           });
           await w.connect({
             client,
-            strategy: "google",
+            strategy: "guest",
           });
           return w;
         });
@@ -160,26 +114,6 @@ const ConnectWithGoogle = () => {
   );
 };
 
-const ConnectWithMetaMask = () => {
-  const { connect, isConnecting } = useConnect();
-  return (
-    <ThemedButton
-      title="Connect with MetaMask"
-      variant="secondary"
-      loading={isConnecting}
-      loadingTitle="Connecting..."
-      onPress={() => {
-        connect(async () => {
-          const w = createWallet("io.metamask");
-          await w.connect({
-            client,
-          });
-          return w;
-        });
-      }}
-    />
-  );
-};
 
 const ConnectWithPasskey = () => {
   const { connect } = useConnect();
@@ -192,7 +126,7 @@ const ConnectWithPasskey = () => {
           const w = inAppWallet({
             auth: {
               options: ["passkey"],
-              passkeyDomain: "thirdweb.com",
+              passkeyDomain: "verify.hypx.xyz",
             },
           });
           await w.connect({
