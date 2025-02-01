@@ -1,16 +1,59 @@
-import React from "react";
-import { WebView } from "react-native-webview";
+import React, { useCallback, useRef, useMemo } from "react";
+import { StyleSheet, View, Text, Button } from "react-native";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 
-export default function TradingViewChart() {
+const App = () => {
+  // hooks
+  const sheetRef = useRef<BottomSheet>(null);
+
+  // variables
+  const snapPoints = useMemo(() => ["25%", "50%", "90%"], []);
+
+  // callbacks
+  const handleSheetChange = useCallback((index) => {
+    console.log("handleSheetChange", index);
+  }, []);
+  const handleSnapPress = useCallback((index) => {
+    sheetRef.current?.snapToIndex(index);
+  }, []);
+  const handleClosePress = useCallback(() => {
+    sheetRef.current?.close();
+  }, []);
+
+  // render
   return (
-    <WebView
-    source={{ uri: `file:///android_asset/index.html` }} // Cache-busting query param
-    style={{ flex: 1 }}
-    javaScriptEnabled
-    domStorageEnabled
-    allowUniversalAccessFromFileURLs={true}
-    originWhitelist={["*"]}
-    cacheEnabled={false} // Disable WebView caching
-  />
+    <View style={styles.container}>
+      <Button title="Snap To 90%" onPress={() => handleSnapPress(2)} />
+      <Button title="Snap To 50%" onPress={() => handleSnapPress(1)} />
+      <Button title="Snap To 25%" onPress={() => handleSnapPress(0)} />
+      <Button title="Close" onPress={() => handleClosePress()} />
+      <BottomSheet
+        ref={sheetRef}
+        snapPoints={snapPoints}
+        index={-1}
+        enableDynamicSizing={false}
+        onChange={handleSheetChange}
+        enablePanDownToClose
+      >
+        <BottomSheetView style={styles.contentContainer}>
+          <Text>Awesome 🔥</Text>
+        </BottomSheetView>
+      </BottomSheet>
+    </View>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: 200,
+  },
+  contentContainer: {
+    flex: 1,
+    padding: 36,
+    alignItems: 'center',
+  },
+});
+
+export default App;

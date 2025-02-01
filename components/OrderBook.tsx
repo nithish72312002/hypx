@@ -10,8 +10,8 @@ interface OrderBookProps {
 
 const OrderBook: React.FC<OrderBookProps> = ({
   symbol,
-  containerWidth = 160, // Default width
-  containerHeight = 300, // Default height
+  containerWidth = 200, // Default width
+  containerHeight = 500, // Default height
 }) => {
   const [bids, setBids] = useState<any[]>([]);
   const [asks, setAsks] = useState<any[]>([]);

@@ -9,7 +9,6 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { AutoConnect, ThirdwebProvider } from "thirdweb/react";
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { client } from "@/constants/thirdweb";
@@ -17,6 +16,8 @@ import { inAppWallet } from "thirdweb/wallets";
 import AppInitializer from "@/components/AppInitializer";
 import { AgentWalletProvider } from "@/context/AgentWalletContext";
 import { HyperliquidProvider } from "@/context/HyperliquidContext";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaView, StatusBar } from "react-native";
 
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -38,8 +39,11 @@ export default function RootLayout() {
 		return null;
 	}
 
-	return (
+	return (	
 
+		<GestureHandlerRootView>
+
+		<SafeAreaProvider>
 		<ThirdwebProvider>
 			
       <AgentWalletProvider>
@@ -55,6 +59,8 @@ export default function RootLayout() {
 			</AgentWalletProvider>
 
 		</ThirdwebProvider>
+		</SafeAreaProvider>
+		</GestureHandlerRootView>		
 
 	);
 }
