@@ -6,7 +6,7 @@ export default class WebSocketManager {
   private userAddress: string;
 
   private constructor() {
-    this.ws = new WebSocket("wss://api.hyperliquid.xyz/ws");
+    this.ws = new WebSocket("wss://api.hyperliquid-testnet.xyz/ws");
     this.listeners = {};
     this.isConnected = false;
     this.userAddress = "0x0000000000000000000000000000000000000000"; // Default user address

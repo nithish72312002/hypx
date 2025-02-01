@@ -1,26 +1,43 @@
 {
 	"cli": {
-		"version": ">= 9.1.0"
+	  "version": ">= 9.1.0"
 	},
 	"build": {
-		"local": {
-			"android": {
-				"buildType": "apk"
-			},
-			"ios": {
-				"simulator": true
-			}
+	  "local": {
+		"android": {
+		  "buildType": "apk"
 		},
-		"development": {
-			"developmentClient": true,
-			"distribution": "internal"
+		"ios": {
+		  "simulator": true
+		}
+	  },
+	  "development": {
+		"developmentClient": true,
+		"distribution": "internal",
+		"android": {
+		  "buildType": "apk" // Builds an APK for Android
 		},
-		"preview": {
-			"distribution": "internal"
+		"env": {
+		  "EXPO_PUBLIC_THIRDWEB_CLIENT_ID": "db202e6d010ca6786aa0462ccf49dec6"
+		}
+	  },
+	  "preview": {
+		"distribution": "internal", // For internal testing
+		"android": {
+		  "buildType": "apk" // Builds an APK for Android
 		},
-		"production": {}
+		"env": {
+		  "EXPO_PUBLIC_THIRDWEB_CLIENT_ID": "db202e6d010ca6786aa0462ccf49dec6"
+		}
+	  },
+	  "production": {
+		"env": {
+		  "EXPO_PUBLIC_THIRDWEB_CLIENT_ID": "db202e6d010ca6786aa0462ccf49dec6"
+		}
+	  }
 	},
 	"submit": {
-		"production": {}
+	  "production": {}
 	}
-}
+  }
+  

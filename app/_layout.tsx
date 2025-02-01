@@ -8,6 +8,8 @@ import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
 import { AutoConnect, ThirdwebProvider } from "thirdweb/react";
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useColorScheme } from "@/hooks/useColorScheme";
 import { client } from "@/constants/thirdweb";
@@ -16,22 +18,7 @@ import AppInitializer from "@/components/AppInitializer";
 import { AgentWalletProvider } from "@/context/AgentWalletContext";
 import { HyperliquidProvider } from "@/context/HyperliquidContext";
 
-const wallets = [
-  inAppWallet({
-	auth: {
-	  options: [
-		"google",
-		"facebook",
-		"discord",
-		"telegram",
-		"email",
-		"phone",
-		"guest",
-	  ],
-	  passkeyDomain: "thirdweb.com",
-	},
-  }),
-];
+
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
@@ -52,10 +39,9 @@ export default function RootLayout() {
 	}
 
 	return (
-		
+
 		<ThirdwebProvider>
-			<AutoConnect wallets={wallets} client={client}  timeout={10000} onTimeout={() => console.error("Auto-connect error:", error)}
-			/>
+			
       <AgentWalletProvider>
 			<AppInitializer	/>
 			<HyperliquidProvider>
@@ -69,5 +55,6 @@ export default function RootLayout() {
 			</AgentWalletProvider>
 
 		</ThirdwebProvider>
+
 	);
 }

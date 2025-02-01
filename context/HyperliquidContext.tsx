@@ -26,7 +26,7 @@ export const HyperliquidProvider = ({ children }) => {
           
           privateKey: wallet.privateKey, // Agent wallet private key
           walletAddress: account.address, // External wallet address
-          testnet: false,
+          testnet: true,
           
           WebSocket: global.WebSocket// Set to false for production
         });

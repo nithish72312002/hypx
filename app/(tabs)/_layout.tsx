@@ -40,9 +40,9 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name="read"
+				name="trade"
 				options={{
-					title: "Read",
+					title: "trade",
 					tabBarIcon: ({ color, focused }) => (
 						<TabBarIcon
 							name={focused ? "reader" : "reader-outline"}
@@ -52,9 +52,21 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name="write"
+				name="futures/[symbol]"
 				options={{
-					title: "Write",
+					title: "futures",
+					tabBarIcon: ({ color, focused }) => (
+						<TabBarIcon
+							name={focused ? "reader" : "reader-outline"}
+							color={color}
+						/>
+					),
+				}}
+			/>
+			<Tabs.Screen
+				name="wallet"
+				options={{
+					title: "wallet",
 					tabBarIcon: ({ color, focused }) => (
 						<TabBarIcon
 							name={focused ? "code-slash" : "code-slash-outline"}

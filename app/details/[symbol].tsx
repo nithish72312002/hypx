@@ -2,39 +2,40 @@ import React, { useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
+import TradingViewChart from "@/components/TradingViewChart";
 import OrderBookMarket from "@/components/OrderBookMarket";
-
-import SpotAssetOverview from "@/components/SpotAssetOverview";
 import PerpAssetOverview from "@/components/PerpAssetOverview";
+import SpotAssetOverview from "@/components/SpotAssetOverview";
 
 const DetailsPage: React.FC = () => {
-  const { symbol } = useLocalSearchParams(); // Get the symbol parameter
+  const { symbol } = useLocalSearchParams();
   const navigation = useNavigation();
 
   useEffect(() => {
-    if (symbol) {
-      navigation.setOptions({
-        title: `${symbol.toUpperCase()}`,
-      });
-    }
-  }, [symbol, navigation]);
+    navigation.setOptions({ title: `${symbol?.toString().toUpperCase()}` });
+  }, [symbol]);
 
-  const isSpot = symbol?.includes("@") || symbol?.includes("/"); // Check if symbol is a spot asset
+  const isSpot = symbol?.includes("@") || symbol?.includes("/");
 
   return (
     <View style={styles.container}>
-      {/* Chart Container */}
-      <View style={styles.chartContainer}>
+      {/* Chart Overview */}
+      <View style={styles.overviewContainer}>
         {isSpot ? (
-          <SpotAssetOverview symbol={symbol || ""} />
+          <SpotAssetOverview symbol={symbol?.toString() || ""} />
         ) : (
-          <PerpAssetOverview symbol={symbol || ""} />
+          <PerpAssetOverview symbol={symbol?.toString() || ""} />
         )}
       </View>
 
-      {/* OrderBook */}
+      {/* TradingView Chart */}
+      <View style={styles.chartContainer}>
+        <TradingViewChart symbol={symbol?.toString() || "BTC"} />
+      </View>
+
+      {/* Order Book */}
       <View style={styles.orderBookContainer}>
-        <OrderBookMarket symbol={symbol || ""} />
+        <OrderBookMarket symbol={symbol?.toString() || ""} />
       </View>
     </View>
   );
@@ -45,13 +46,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
+  overviewContainer: {
+    padding: 12, // Add padding for spacing
+  },
   chartContainer: {
-    height: 400, // Adjust as needed
-    marginBottom: 16,
+    height: 380, // Fixed height for the chart
+    marginBottom: 8,
   },
   orderBookContainer: {
-    flex: 1,
-    backgroundColor: "#000",
+    flex: 1, // Takes remaining space
   },
 });
 

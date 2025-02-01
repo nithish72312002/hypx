@@ -61,10 +61,21 @@ export default function AppInitializer() {
       const privateKey = newWallet.privateKey;
       await savePrivateKey(privateKey); // Save the private key to storage
       setWallet(newWallet); // Update the context with the new wallet
-
+  
       console.log("New agent wallet created:", newWallet.address);
+  
+      // Wait for the context to update before proceeding
+      await new Promise((resolve) => {
+        const interval = setInterval(() => {
+          if (wallet?.address === newWallet.address) {
+            clearInterval(interval);
+            resolve();
+          }
+        }, 100);
+      });
+  
       console.log("Approving the new agent wallet...");
-      await approveAgent();
+      await approveAgent(); // Approve the new wallet
       setApprovalCompleted(true); // Mark approval as completed
     } catch (error) {
       console.error("Failed to create and approve new agent wallet:", error);
