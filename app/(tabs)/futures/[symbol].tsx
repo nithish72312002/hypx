@@ -151,8 +151,7 @@ const FuturesPage: React.FC = () => {
         {/* Funding Row */}
         <View style={styles.fundingRow}>
           <Text style={styles.fundingText}>Funding/Countdown</Text>
-          <Text style={styles.fundingText}>Cross</Text>
-          <Text style={styles.fundingText}>20x</Text>
+          
           <Text style={styles.fundingText}>0.0064% 05:58:51</Text>
         </View>
 

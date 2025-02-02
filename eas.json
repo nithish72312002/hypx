@@ -16,9 +16,6 @@
 		"distribution": "internal",
 		"android": {
 		  "buildType": "apk" // Builds an APK for Android
-		},
-		"env": {
-		  "EXPO_PUBLIC_THIRDWEB_CLIENT_ID": "db202e6d010ca6786aa0462ccf49dec6"
 		}
 	  },
 	  "preview": {
