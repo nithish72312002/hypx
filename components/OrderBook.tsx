@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { StyleSheet, View, Text, FlatList, ActivityIndicator } from "react-native";
+import { StyleSheet, View, Text, FlatList, ActivityIndicator, Dimensions, TouchableOpacity } from "react-native";
 import WebSocketManager from "@/api/WebSocketManager";
 
 interface OrderBookProps {
-  symbol: string; // Symbol of the asset (e.g., "BTC")
-  containerWidth?: number; // Optional container width
-  containerHeight?: number; // Optional container height
-}
+  symbol: string;
+  onPriceSelect?: (price: number) => void;
 
+}
+const { width } = Dimensions.get('window');
+const { height } = Dimensions.get('window');
 const OrderBook: React.FC<OrderBookProps> = ({
   symbol,
-  containerWidth = 200, // Default width
-  containerHeight = 500, // Default height
+  onPriceSelect, // Destructure the new prop
+
 }) => {
   const [bids, setBids] = useState<any[]>([]);
   const [asks, setAsks] = useState<any[]>([]);
@@ -19,7 +20,7 @@ const OrderBook: React.FC<OrderBookProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const styles = dynamicStyles(containerWidth, containerHeight);
+ 
 
   useEffect(() => {
     const wsManager = WebSocketManager.getInstance();
@@ -27,14 +28,12 @@ const OrderBook: React.FC<OrderBookProps> = ({
     const orderBookListener = (data: any) => {
       if (data.levels && Array.isArray(data.levels)) {
         const [bidsData, asksData] = data.levels;
-
         setBids(
           bidsData.slice(0, 7).map((level: any) => ({
             px: parseFloat(level.px),
             sz: parseFloat(level.sz),
           }))
         );
-
         setAsks(
           asksData.slice(0, 7).map((level: any) => ({
             px: parseFloat(level.px),
@@ -42,7 +41,6 @@ const OrderBook: React.FC<OrderBookProps> = ({
           }))
         );
       }
-
       setIsLoading(false);
     };
 
@@ -56,16 +54,15 @@ const OrderBook: React.FC<OrderBookProps> = ({
 
     wsManager.subscribe(
       "l2Book",
-      { type: "l2Book", coin: symbol, nSigFigs: 5 },
+      { type: "l2Book", coin: symbol, nSigFigs: null },
       orderBookListener
     );
-
     wsManager.subscribe("allMids", { type: "allMids" }, allMidsListener);
 
     return () => {
       wsManager.unsubscribe(
         "l2Book",
-        { type: "l2Book", coin: symbol, nSigFigs: 5 },
+        { type: "l2Book", coin: symbol, nSigFigs: null },
         orderBookListener
       );
       wsManager.unsubscribe("allMids", { type: "allMids" }, allMidsListener);
@@ -77,16 +74,22 @@ const OrderBook: React.FC<OrderBookProps> = ({
     isAsk: boolean
   ) => {
     if (!item || typeof item.px !== "number" || typeof item.sz !== "number") {
-      return null; // Skip rendering invalid rows
+      return null;
     }
-
-    const maxSize = isAsk
-      ? Math.max(...asks.map((ask) => ask.sz)) || 1
-      : Math.max(...bids.map((bid) => bid.sz)) || 1;
-
+    const maxSize =
+      isAsk ? Math.max(...asks.map((ask) => ask.sz)) || 1 : Math.max(...bids.map((bid) => bid.sz)) || 1;
     const barWidth = `${Math.min(item.sz / maxSize, 1) * 100}%`;
 
     return (
+      <TouchableOpacity
+        onPress={() => {
+          // When the row is tapped, call the callback with the price.
+          if (onPriceSelect) {
+            onPriceSelect(item.px);
+          }
+        }}
+      >
+
       <View style={[styles.orderRow, { marginVertical: 2 }]}>
         <View
           style={[
@@ -96,17 +99,17 @@ const OrderBook: React.FC<OrderBookProps> = ({
           ]}
         />
         <Text style={[styles.priceText, isAsk ? styles.askText : styles.bidText]}>
-          {item.px.toFixed(2)}
+          {item.px}
         </Text>
-        <Text style={styles.amountText}>{item.sz.toFixed(2)}</Text>
-      </View>
+        <Text style={styles.amountText}>{item.sz}</Text>
+      </View></TouchableOpacity>
     );
   };
 
   if (isLoading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#4CAF50" />
         <Text style={styles.loadingText}>Loading order book...</Text>
       </View>
     );
@@ -135,31 +138,30 @@ const OrderBook: React.FC<OrderBookProps> = ({
           data={asks}
           keyExtractor={(_, index) => `ask-${index}`}
           renderItem={(item) => renderOrder(item, true)}
-          scrollEnabled={false} // Disable scrolling
-          inverted // Show highest asks at the top
+          scrollEnabled={false}
+          inverted
         />
         <View style={styles.midPriceContainer}>
           <Text style={styles.midPriceText}>
-            {midPrice !== null ? midPrice.toFixed(4) : "NaN"}
+            {midPrice !== null ? midPrice : "NaN"}
           </Text>
         </View>
         <FlatList
           data={bids}
           keyExtractor={(_, index) => `bid-${index}`}
           renderItem={(item) => renderOrder(item, false)}
-          scrollEnabled={false} // Disable scrolling
+          scrollEnabled={false}
         />
       </View>
     </View>
   );
 };
 
-const dynamicStyles = (containerWidth: number, containerHeight: number) =>
-  StyleSheet.create({
+const styles =  StyleSheet.create({
     container: {
-      width: containerWidth,
-      height: containerHeight,
-      backgroundColor: "#1A1A1D",
+      width: width * 0.45,
+      height: height * 0.5,
+      backgroundColor: "#1E1E2F",
       borderRadius: 10,
       paddingVertical: 10,
       alignItems: "center",
@@ -167,29 +169,29 @@ const dynamicStyles = (containerWidth: number, containerHeight: number) =>
     },
     orderBookContainer: {
       flex: 1,
-      width: "90%",
+      width: "100%",
     },
     midPriceContainer: {
-      backgroundColor: "#333",
+      backgroundColor: "#2E2E3A",
       borderRadius: 5,
       paddingVertical: 4,
       marginVertical: 8,
       alignItems: "center",
     },
     midPriceText: {
-      fontSize: containerWidth * 0.07,
+      fontSize: width * 0.027,
       fontWeight: "bold",
-      color: "#FFD700", // Gold color for visibility
+      color: "#FFD700",
     },
     errorText: {
-      color: "red",
+      color: "#FF6B6B",
       textAlign: "center",
     },
     orderRow: {
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      height: containerHeight * 0.04,
+      height: height * 0.025,
       paddingHorizontal: 6,
       position: "relative",
     },
@@ -202,23 +204,31 @@ const dynamicStyles = (containerWidth: number, containerHeight: number) =>
       borderRadius: 4,
     },
     askBar: {
-      backgroundColor: "#FF4D4D",
+      backgroundColor: "#FF6B6B",
     },
     bidBar: {
       backgroundColor: "#4CAF50",
     },
     priceText: {
-      fontSize: containerWidth * 0.05,
+      fontSize: width * 0.027,
       fontWeight: "bold",
+      color: "#FFFFFF",
     },
     amountText: {
-      fontSize: containerWidth * 0.05,
-      color: "#fff",
+      fontSize: width * 0.027,
+      color: "#FFFFFF",
       textAlign: "right",
     },
     loadingText: {
-      fontSize: containerWidth * 0.04,
-      color: "#fff",
+      fontSize: width * 0.027,
+      color: "#FFFFFF",
+      marginTop: 8,
+    },
+    askText: {
+      color: "#FF6B6B",
+    },
+    bidText: {
+      color: "#4CAF50",
     },
   });
 

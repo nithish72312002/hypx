@@ -1,10 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
-import Slider from '@react-native-community/slider';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { useActiveAccount } from 'thirdweb/react';
 import WebSocketManager from '@/api/WebSocketManager';
-import { useLocalSearchParams } from 'expo-router';
 import { useHyperliquid } from '@/context/HyperliquidContext';
+
 const { width } = Dimensions.get('window');
 
 interface Leverage {
@@ -20,93 +19,105 @@ interface WsActiveAssetData {
   availableToTrade: [number, number];
 }
 
-interface AssetData extends WsActiveAssetData {}
-
 interface TradingInterfaceProps {
   symbol: string;
+  price: string;
+  setPrice: (price: string) => void;
 }
 
-const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol }) => {  
+const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setPrice }) => {  
   const [marginType, setMarginType] = useState('Cross');
   const [orderType, setOrderType] = useState('Limit');
   const [isReduceOnly, setIsReduceOnly] = useState(false);
   const [activeAssetData, setActiveAssetData] = useState<WsActiveAssetData | null>(null);
-  const [orderSide, setOrderSide] = useState<'buy' | 'sell'>('buy');
-  const [tradeType, setTradeType] = useState('buy');
-  const { sdk } = useHyperliquid();
-  const fullSymbol = `${symbol}-PERP`;
   const [size, setSize] = useState('0.01');
-  const [price, setPrice] = useState('3400');
-const [midPrices, setMidPrices] = useState<Record<string, number>>({});
-const [slippage] = useState(0.5); // 0.5% slippage
-  // References for price and amount inputs
   const [isBuy, setIsBuy] = useState(true);
   const [tradeStatus, setTradeStatus] = useState<string | null>(null);
-
+  const [midPrice, setMidPrice] = useState<number | null>(null);
 
   const wsManager = WebSocketManager.getInstance();
   const account = useActiveAccount();
-  const userAddress = account?.address || '0x93c6d60b83c43C925538215Ee467De7ed5B4D4d9';
+  const userAddress = account?.address || '0x0000000000000000000000000000000000000000';
+  const { sdk } = useHyperliquid();
+  const fullSymbol = `${symbol}-PERP`;
 
-  // State to store order parameters
- 
-
+  // Subscribe to active asset data and mid prices
   useEffect(() => {
-    const wsManager = WebSocketManager.getInstance();
-  
     const activeAssetDataListener = (response: any) => {
-      console.log("WebSocket Data Received:", response);
-
       if (response?.coin?.toUpperCase() === symbol.toUpperCase()) {
-        console.log("Leverage Value:", response?.leverage?.value); 
         setActiveAssetData(response);
       }
     };
+
+    const allMidsListener = (data: any) => {
+      if (data?.mids && data.mids[symbol]) {
+        setMidPrice(parseFloat(data.mids[symbol]));
+      } else {
+        setMidPrice(NaN);
+      }
+    };
     
-  
-    console.log(`Subscribing to activeAssetData for symbol: ${symbol}`);
-  
     wsManager.subscribe(
       "activeAssetData",
       { type: "activeAssetData", user: userAddress, coin: symbol },
       activeAssetDataListener
     );
-  
+    wsManager.subscribe("allMids", { type: "allMids" }, allMidsListener);
+
     return () => {
-      console.log(`Unsubscribing from activeAssetData for symbol: ${symbol}`);
       wsManager.unsubscribe(
         "activeAssetData",
         { type: "activeAssetData", user: userAddress, coin: symbol },
         activeAssetDataListener
       );
+      wsManager.unsubscribe("allMids", { type: "allMids" }, allMidsListener);
     };
   }, [userAddress, symbol]);
 
   useEffect(() => {
     if (activeAssetData?.leverage?.type) {
-      setMarginType(activeAssetData.leverage.type === 'cross' ? 'Cross' : 'Isolated');
+      setMarginType(activeAssetData.leverage.type.toLowerCase() === 'cross' ? 'Cross' : 'Isolated');
     }
   }, [activeAssetData]);
 
+  // This effect updates the price when switching to a market order.
+  // When orderType is "Market" and midPrice is available, set the price to midPrice with 0.5% slippage.
   useEffect(() => {
-    const wsManager = WebSocketManager.getInstance();
-    const handleAllMids = (data: any) => {
-      if (data.channel === 'allMids' && data.data?.mids) {
-        setMidPrices(data.data.mids);
+    if (orderType === 'Market' && midPrice != null && !isNaN(midPrice)) {
+      let px = midPrice;
+      // For market orders:
+      // - If buying, add 0.5% slippage (midPrice * 1.005)
+      // - If selling, subtract 0.5% slippage (midPrice * 0.995)
+      if (isBuy) {
+        px = px * 1.005;
+      } else {
+        px = px * 0.995;
       }
+      // Format to 5 significant figures (like Python's f"{px:.5g}")
+      const pxFiveSig = parseFloat(px.toPrecision(5));
+      // Round to 6 decimals (for perps)
+      const finalPrice = parseFloat(pxFiveSig.toFixed(6));
+      // Update price state (convert to string if needed)
+      setPrice(finalPrice.toString());
+      console.log("Adjusted price:", finalPrice);
+    }
+    console.log("midPrice:", midPrice);
+  }, [orderType, midPrice, isBuy, setPrice]);
+
+  // Additional listener for midPrice updates if needed
+  useEffect(() => {
+    const handleAllMids = (data: any) => {
+      // Your logic for mid-prices, if needed.
     };
-  
     wsManager.addListener('allMids', handleAllMids);
     return () => wsManager.removeListener('allMids', handleAllMids);
   }, []);
-  
-  // Add price calculation function
+
   const placeOrder = async () => {
     if (!sdk) {
       setTradeStatus("SDK not initialized yet.");
       return;
     }
-
     const sizeNum = parseFloat(size);
     const priceNum = parseFloat(price);
 
@@ -114,11 +125,16 @@ const [slippage] = useState(0.5); // 0.5% slippage
       setTradeStatus("Please enter a valid size");
       return;
     }
-
     if (isNaN(priceNum) || priceNum <= 0) {
       setTradeStatus("Please enter a valid price");
       return;
     }
+
+    // Set order type conditionally:
+    const orderTypeObject =
+      orderType === 'Market'
+        ? { limit: { tif: "FrontendMarket" } }
+        : { limit: { tif: "Gtc" } };
 
     try {
       const result = await sdk.exchange.placeOrder({ 
@@ -126,81 +142,59 @@ const [slippage] = useState(0.5); // 0.5% slippage
         is_buy: isBuy,
         sz: sizeNum,
         limit_px: priceNum,
-        order_type: { limit: { tif: "Gtc" } },
+        order_type: orderTypeObject,
         reduce_only: false,
       });
-      console.log("Order Placed:", result);
-
       const error = result?.response?.data?.statuses?.[0]?.error;
-      if (error) {
-        setTradeStatus(`Failed to place order: ${error}`);
-      } else {
-        setTradeStatus("Order placed successfully!");
-      }
+      setTradeStatus(error ? `Failed to place order: ${error}` : "Order placed successfully!");
     } catch (error: any) {
-      console.error("Error placing order:", error);
-      setTradeStatus(
-        `Failed to place order: ${error.message ?? "Unknown error"}`
-      );
+      setTradeStatus(`Failed to place order: ${error.message ?? "Unknown error"}`);
     }
   };
 
   const handleSizeChange = (value: string) => {
-    setSize(value); // Directly store the string value
+    setSize(value);
   };
 
+  // Allow onChangeText for price only when the order is Limit.
   const handlePriceChange = (value: string) => {
-    setPrice(value); // Directly store the string value
+    setPrice(value);
   };
+
   return (
     <View style={styles.container}>
-      {/* Header with Dropdowns */}
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.dropdownButton}
-        >
-          <Text style={styles.headerText}>{activeAssetData?.leverage?.value}x</Text>
+        <TouchableOpacity style={styles.dropdownButton}>
+          <Text style={styles.headerText}>{activeAssetData?.leverage?.value || "0"}x</Text>
         </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.dropdownButton}
-          onPress={() => {
-            setMarginType(marginType === 'Cross' ? 'Isolated' : 'Cross');
-          }}
+          onPress={() => setMarginType(marginType === 'Cross' ? 'Isolated' : 'Cross')}
         >
           <Text style={styles.headerText}>{marginType}</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Toggle Container */}
+      {/* Toggle Buttons */}
       <View style={styles.toggleContainer}>
-  <TouchableOpacity
-    style={[styles.toggleButton, isBuy && styles.activeBuy]}
-    onPress={() => setIsBuy(true)}
-  >
-    <Text style={[styles.toggleText, isBuy && styles.activeText]}>
-      Buy
-    </Text>
-  </TouchableOpacity>
-  <TouchableOpacity
-    style={[styles.toggleButton, !isBuy && styles.activeSell]}
-    onPress={() => setIsBuy(false)}
-  >
-    <Text style={[styles.toggleText, !isBuy && styles.activeText]}>
-      Sell
-    </Text>
-  </TouchableOpacity>
-</View>
+        <TouchableOpacity style={[styles.toggleButton, isBuy && styles.activeBuy]} onPress={() => setIsBuy(true)}>
+          <Text style={[styles.toggleText, isBuy && styles.activeText]}>Buy</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.toggleButton, !isBuy && styles.activeSell]} onPress={() => setIsBuy(false)}>
+          <Text style={[styles.toggleText, !isBuy && styles.activeText]}>Sell</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Balance Row */}
       <View style={styles.balanceRow}>
         <Text style={styles.label}>Avbl</Text>
         <Text style={styles.value}>
-        {(isBuy ? activeAssetData?.availableToTrade?.[0] : activeAssetData?.availableToTrade?.[1]) || '0.000'} USDC
+          {(isBuy ? activeAssetData?.availableToTrade?.[0] : activeAssetData?.availableToTrade?.[1]) || '0.000'} USDC
         </Text>
       </View>
 
-      {/* Order Type Selector with Dropdown */}
+      {/* Order Type Selector */}
       <View style={styles.orderTypeContainer}>
         <TouchableOpacity
           style={[styles.orderTypeButton, styles.activeOrderType]}
@@ -211,31 +205,28 @@ const [slippage] = useState(0.5); // 0.5% slippage
       </View>
 
       {/* Price Input */}
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>Price (USDC)</Text>
-        <View style={styles.inputRow}>
-        <TextInput
-  style={[
-    styles.input,
-    orderType === 'Market' && { backgroundColor: '#444', color: '#888' },
-  ]}
-  keyboardType="numeric"
-  value={price}
-  onChangeText={handlePriceChange}
-/>
+      {orderType === 'Limit' && (
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>Price (USDC)</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={price}
+              onChangeText={handlePriceChange}
+            />
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Amount Input */}
       <View style={styles.inputContainer}>
         <View style={[styles.inputRow, { justifyContent: 'space-between' }]}>
           <Text style={styles.label}>Amount {symbol}</Text>
           <TouchableOpacity style={styles.maxButton} onPress={() => {
-  const max = isBuy 
-    ? activeAssetData?.maxTradeSzs?.[0] 
-    : activeAssetData?.maxTradeSzs?.[1];
-  setSize(max?.toString() || '0.00');
-}}>
+            const max = isBuy ? activeAssetData?.maxTradeSzs?.[0] : activeAssetData?.maxTradeSzs?.[1];
+            setSize(max?.toString() || '0.00');
+          }}>
             <Text style={styles.maxButtonText}>Max</Text>
           </TouchableOpacity>
         </View>
@@ -243,28 +234,23 @@ const [slippage] = useState(0.5); // 0.5% slippage
           <TextInput
             style={styles.input}
             keyboardType="numeric"
-        value={size}
-        onChangeText={handleSizeChange}      />
+            value={size}
+            onChangeText={handleSizeChange}
+          />
         </View>
       </View>
 
       {/* Options Row */}
       <View style={styles.optionsContainer}>
-        <TouchableOpacity 
-          style={styles.optionButton}
-          onPress={() => setIsReduceOnly(!isReduceOnly)}
-        >
-          <View style={[
-            styles.optionIndicator,
-            isReduceOnly && styles.checkedIndicator
-          ]}>
-            {isReduceOnly && <Text style={styles.checkmark}></Text>}
+        <TouchableOpacity style={styles.optionButton} onPress={() => setIsReduceOnly(!isReduceOnly)}>
+          <View style={[styles.optionIndicator, isReduceOnly && styles.checkedIndicator]}>
+            {isReduceOnly && <Text style={styles.checkmark}>✓</Text>}
           </View>
           <Text style={styles.optionText}>Reduce Only</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Max and Cost Rows */}
+      {/* Max Row */}
       <View style={styles.row}>
         <Text style={styles.orderButtonSubtext}>Max</Text>
         <Text style={styles.orderButtonValue}>
@@ -273,29 +259,15 @@ const [slippage] = useState(0.5); // 0.5% slippage
       </View>
 
       {/* Order Button */}
-      <TouchableOpacity
-  style={[
-    styles.orderButton,
-    isBuy ? styles.buyButton : styles.sellButton,
-  ]}
-  onPress={placeOrder} // Directly use the placeOrder function
->
-  <Text style={styles.orderButtonText}>
-    {isBuy ? 'Buy / Long' : 'Sell / Short'}
-  </Text>
-</TouchableOpacity>
+      <TouchableOpacity style={[styles.orderButton, isBuy ? styles.buyButton : styles.sellButton]} onPress={placeOrder}>
+        <Text style={styles.orderButtonText}>
+          {isBuy ? 'Buy / Long' : 'Sell / Short'}
+        </Text>
+      </TouchableOpacity>
 
-      {/* Max and Cost Rows */}
-     
-{tradeStatus && (
-        <Text
-          style={[
-            styles.tradeStatus,
-            tradeStatus.includes("successfully")
-              ? styles.successText
-              : styles.errorText,
-          ]}
-        >
+      {/* Trade Status */}
+      {tradeStatus && (
+        <Text style={[styles.tradeStatus, tradeStatus.includes("successfully") ? styles.successText : styles.errorText]}>
           {tradeStatus}
         </Text>
       )}
@@ -303,94 +275,11 @@ const [slippage] = useState(0.5); // 0.5% slippage
   );
 };
 
-
-
-
 const styles = StyleSheet.create({
-  disabledButton: {
-    backgroundColor: '#666',
-    opacity: 0.6,
-  },
-  
-      checkedIndicator: {
-        backgroundColor: '#18a689',
-        borderColor: '#18a689',
-      },
-      checkmark: {
-        color: 'white',
-        fontSize: 12,
-        fontWeight: 'bold',
-      },
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginVertical: 1, // Optional for spacing between rows
-      },
-      orderButtonValue: {
-        color: 'white', // Or any other color
-        fontSize: 12,
-        textAlign: 'right',
-      },
-    modalOverlay: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-      },
-     
-      modalContent: {
-        backgroundColor: '#1E1E1E',
-        borderRadius: 10,
-        padding: 20,
-        width: '90%',
-        alignItems: 'center',
-      },
-      modalHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        width: '100%',
-        alignItems: 'center',
-      },
-      modalTitle: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: 'bold',
-      },
-      closeButton: {
-        backgroundColor: '#333',
-        borderRadius: 20,
-        padding: 10,
-      },
-      closeButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold',
-      },
-      slider: {
-        width: '100%',
-        marginTop: 20,
-      },
-      sliderValue: {
-        color: 'white',
-        fontSize: 18,
-        fontWeight: 'bold',
-        marginTop: 10,
-      },
-      confirmButton: {
-        marginTop: 20,
-        backgroundColor: '#18a689',
-        paddingVertical: 12,
-        paddingHorizontal: 30,
-        borderRadius: 8,
-      },
-      confirmButtonText: {
-        color: 'white',
-        fontSize: 16,
-        fontWeight: 'bold',
-      },
   container: {
-    width: width * 0.5,
+    width: width * 0.48,
     flex: 1,
-    backgroundColor: '#121212',
+    backgroundColor: "#1E1E2F",
     padding: 10,
   },
   header: {
@@ -399,9 +288,38 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   headerText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '500',
+  },
+  dropdownButton: {
+    padding: 8,
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#2E2E3A',
+    borderRadius: 8,
+    marginVertical: 10,
+    padding: 4,
+  },
+  toggleButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 6,
+  },
+  activeBuy: {
+    backgroundColor: '#4CAF50',
+  },
+  activeSell: {
+    backgroundColor: '#FF6B6B',
+  },
+  toggleText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  activeText: {
+    fontWeight: 'bold',
   },
   balanceRow: {
     flexDirection: 'row',
@@ -409,22 +327,30 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   label: {
-    color: '#888',
+    color: '#BBBBBB',
     fontSize: 14,
   },
   value: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 14,
   },
   orderTypeContainer: {
     flexDirection: 'row',
     marginBottom: 12,
   },
+  orderTypeButton: {
+    flex: 1,
+    padding: 10,
+    alignItems: 'center',
+    backgroundColor: '#2E2E3A',
+    marginHorizontal: 4,
+    borderRadius: 4,
+  },
   activeOrderType: {
-    backgroundColor: '#333',
+    backgroundColor: '#2E2E3A',
   },
   orderTypeText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 16,
   },
   inputContainer: {
@@ -437,20 +363,24 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#222',
-    color: 'white',
+    backgroundColor: '#2E2E3A',
+    color: '#FFFFFF',
     padding: 12,
     borderRadius: 4,
     fontSize: 16,
   },
+  disabledInput: {
+    backgroundColor: '#444444',
+    color: '#888888',
+  },
   maxButton: {
-    backgroundColor: '#333',
+    backgroundColor: '#333333',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 4,
   },
   maxButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 12,
   },
   optionsContainer: {
@@ -467,12 +397,37 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#666',
+    borderColor: '#666666',
     marginRight: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkedIndicator: {
+    backgroundColor: '#4CAF50',
+    borderColor: '#4CAF50',
+  },
+  checkmark: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   optionText: {
-    color: '#888',
+    color: '#BBBBBB',
     fontSize: 12,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 1,
+  },
+  orderButtonSubtext: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 12,
+  },
+  orderButtonValue: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    textAlign: 'right',
   },
   orderButton: {
     padding: 16,
@@ -480,72 +435,27 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   buyButton: {
-    backgroundColor: '#18a689',
+    backgroundColor: '#4CAF50',
   },
   sellButton: {
-    backgroundColor: '#bf6262',
+    backgroundColor: '#FF6B6B',
   },
   orderButtonText: {
-    color: 'white',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  orderButtonSubtext: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 12,
+  tradeStatus: {
     textAlign: 'center',
-  },
-  dropdownButton: {
-    padding: 8,
-  },
-  dropdown: {
-    backgroundColor: '#222',
-    padding: 16,
-    borderRadius: 8,
     marginTop: 8,
+    fontSize: 14,
   },
- 
-  orderTypeButton: {
-    flex: 1,
-    padding: 10,
-    alignItems: 'center',
-    backgroundColor: '#222',
-    marginHorizontal: 4,
-    borderRadius: 4,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  successText: {
+    color: '#4CAF50',
   },
-  toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#222',
-    borderRadius: 8,
-    marginVertical: 10,
-    padding: 4,
-  },
-  
-  toggleButton: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 6,
-  },
-  
-  activeBuy: {
-    backgroundColor: '#18a689', // Green for Buy
-  },
-  
-  activeSell: {
-    backgroundColor: '#bf6262', // Red for Sell
-  },
-  
-  toggleText: {
-    fontSize: 16,
-    color: 'white',
-  },
-  
-  activeText: {
-    fontWeight: 'bold',
+  errorText: {
+    color: '#FF6B6B',
   },
 });
 
