@@ -258,7 +258,11 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
                 <DetailRow label="Mark Price" value={markPx} />
                 <DetailRow
                   label="Liq. Price"
-                  value={(pos.position.liquidationPx.toPrecision(5)) || "-"}
+                  value={
+                    pos.position.liquidationPx !== null 
+                      ? parseFloat(pos.position.liquidationPx).toPrecision(5) 
+                      : '-' 
+                  } 
                 />
               </View>
             </View>
