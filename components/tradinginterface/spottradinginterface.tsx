@@ -3,52 +3,71 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions } from 
 import { useActiveAccount } from 'thirdweb/react';
 import WebSocketManager from '@/api/WebSocketManager';
 import { useHyperliquid } from '@/context/HyperliquidContext';
+import axios from 'axios';
 
 const { width } = Dimensions.get('window');
 
-interface Leverage {
-  type: string;
-  value: number;
+interface SpotBalance {
+  coin: string;
+  token: number;
+  total: string;
+  hold: string;
+  entryNtl: string;
 }
 
-interface WsActiveAssetData {
-  user: string;
-  coin: string;
-  leverage: Leverage;
-  maxTradeSzs: [number, number];
-  availableToTrade: [number, number];
+interface SpotState {
+  balances: SpotBalance[];
 }
 
 interface TradingInterfaceProps {
   symbol: string;
   price: string;
+  sdksymbol: string;
   setPrice: (price: string) => void;
 }
 
-const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setPrice }) => {  
-  const [marginType, setMarginType] = useState('Cross');
+const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setPrice, sdksymbol }) => {  
   const [orderType, setOrderType] = useState('Limit');
   const [isReduceOnly, setIsReduceOnly] = useState(false);
-  const [activeAssetData, setActiveAssetData] = useState<WsActiveAssetData | null>(null);
+  const [spotState, setSpotState] = useState<SpotState>({ balances: [] });
   const [size, setSize] = useState('0.01');
   const [isBuy, setIsBuy] = useState(true);
   const [tradeStatus, setTradeStatus] = useState<string | null>(null);
   const [midPrice, setMidPrice] = useState<number | null>(null);
+  const [szDecimals, setSzDecimals] = useState<number>(0);
 
   const wsManager = WebSocketManager.getInstance();
   const account = useActiveAccount();
   const userAddress = account?.address || '0x0000000000000000000000000000000000000000';
   const { sdk } = useHyperliquid();
-  const fullSymbol = `${symbol}-PERP`;
+  const fullSymbol = `${sdksymbol}-SPOT`;
 
-  // Subscribe to active asset data and mid prices
+  // Subscribe to active asset data and mid prices as before.
   useEffect(() => {
-    const activeAssetDataListener = (response: any) => {
-      if (response?.coin?.toUpperCase() === symbol.toUpperCase()) {
-        setActiveAssetData(response);
+    const fetchTokenDecimals = async () => {
+      if (!sdksymbol) return;
+      try {
+        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
+          type: "spotMeta",
+        });
+        const spotMeta = response.data;
+        const token = spotMeta.tokens.find((t: any) => 
+          t.name.toUpperCase() === sdksymbol.toUpperCase()
+        );
+        if (token) {
+          setSzDecimals(token.szDecimals);
+          console.log(`Token ${sdksymbol} szDecimals:`, token.szDecimals);
+        } else {
+          console.warn(`Token ${sdksymbol} not found in spot metadata.`);
+        }
+      } catch (error) {
+        console.error('Error fetching token decimals:', error);
       }
     };
+    fetchTokenDecimals();
+  }, [sdksymbol]);
 
+  useEffect(() => {
     const allMidsListener = (data: any) => {
       if (data?.mids && data.mids[symbol]) {
         setMidPrice(parseFloat(data.mids[symbol]));
@@ -57,87 +76,115 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
       }
     };
     
-    wsManager.subscribe(
-      "activeAssetData",
-      { type: "activeAssetData", user: userAddress, coin: symbol },
-      activeAssetDataListener
-    );
     wsManager.subscribe("allMids", { type: "allMids" }, allMidsListener);
 
     return () => {
-      wsManager.unsubscribe(
-        "activeAssetData",
-        { type: "activeAssetData", user: userAddress, coin: symbol },
-        activeAssetDataListener
-      );
       wsManager.unsubscribe("allMids", { type: "allMids" }, allMidsListener);
     };
-  }, [userAddress, symbol]);
+  }, [symbol]);
 
+  // Subscribe to webData2 for the spotState data.
   useEffect(() => {
-    if (activeAssetData?.leverage?.type) {
-      setMarginType(activeAssetData.leverage.type.toLowerCase() === 'cross' ? 'Cross' : 'Isolated');
-    }
-  }, [activeAssetData]);
+    const webData2Listener = (data: any) => {
+      // Expecting data in the format: { spotState: { balances: [ ... ] } }
+      if (data?.spotState) {
+        setSpotState(data.spotState);
+      }
+    };
 
-  // This effect updates the price when switching to a market order.
-  // When orderType is "Market" and midPrice is available, set the price to midPrice with 0.5% slippage.
+    wsManager.subscribe("webData2", { type: "spotState" }, webData2Listener);
+    return () => {
+      wsManager.unsubscribe("webData2", { type: "spotState" }, webData2Listener);
+    };
+  }, [wsManager]);
+
+  // Update price for Market orders based on midPrice.
   useEffect(() => {
     if (orderType === 'Market' && midPrice != null && !isNaN(midPrice)) {
-      let px = midPrice;
-      // For market orders:
-      // - If buying, add 0.5% slippage (midPrice * 1.005)
-      // - If selling, subtract 0.5% slippage (midPrice * 0.995)
+      let px = midPrice; // For example, 3129.5
+      
+      // Adjust price based on order side, if applicable (this step is optional based on your business logic)
       if (isBuy) {
         px = px * 1.005;
       } else {
         px = px * 0.995;
       }
-      // Format to 5 significant figures (like Python's f"{px:.5g}")
-      const pxFiveSig = parseFloat(px.toPrecision(5));
-      // Round to 6 decimals (for perps)
-      const finalPrice = parseFloat(pxFiveSig.toFixed(6));
-      // Update price state (convert to string if needed)
+      
+      // For perp coins, MAX_DECIMALS is 6.
+      const MAX_DECIMALS = 6;
+      const allowedDecimalPlaces = MAX_DECIMALS - szDecimals; // 6 - 4 = 2
+  
+      let finalPrice;
+      
+      // If the price is an integer, it's allowed as-is.
+      if (Number.isInteger(px)) {
+        finalPrice = px;
+      } else {
+        // Round to 5 significant figures.
+        const pxFiveSig = parseFloat(px.toPrecision(5));
+        // Then enforce allowed decimal places.
+        finalPrice = parseFloat(pxFiveSig.toFixed(allowedDecimalPlaces));
+      }
+      
       setPrice(finalPrice.toString());
-      console.log("Adjusted price:", finalPrice);
+      console.log(`Calculated final price: ${finalPrice}`);
     }
-    console.log("midPrice:", midPrice);
-  }, [orderType, midPrice, isBuy, setPrice]);
+  }, [orderType, midPrice, isBuy, setPrice, szDecimals]);
+  
+  
 
-  // Additional listener for midPrice updates if needed
-  useEffect(() => {
-    const handleAllMids = (data: any) => {
-      // Your logic for mid-prices, if needed.
-    };
-    wsManager.addListener('allMids', handleAllMids);
-    return () => wsManager.removeListener('allMids', handleAllMids);
-  }, []);
+  // Determine the available balance and max trade size based on the order side.
+  const availableBalance =
+    isBuy
+      ? spotState.balances.find((bal) => bal.coin.toUpperCase() === 'USDC')?.total || '0.000'
+      : spotState.balances.find((bal) => bal.coin.toUpperCase() === sdksymbol.toUpperCase())?.total || '0.000';
+
+      const HoldBalance =
+      isBuy
+        ? spotState.balances.find((bal) => bal.coin.toUpperCase() === 'USDC')?.hold || '0.000'
+        : spotState.balances.find((bal) => bal.coin.toUpperCase() === sdksymbol.toUpperCase())?.hold || '0.000';
+
+  // Calculate max trade size based on available balance and mid price
+    const maxTradeSize = midPrice ? ((parseFloat(availableBalance) - parseFloat(HoldBalance)) / midPrice).toFixed(szDecimals) : '0';
+  
+  const maxTradeSizesell = (parseFloat(availableBalance) - parseFloat(HoldBalance)).toFixed(szDecimals);
 
   const placeOrder = async () => {
     if (!sdk) {
       setTradeStatus("SDK not initialized yet.");
+      console.log("SDK not initialized yet.");
       return;
     }
     const sizeNum = parseFloat(size);
     const priceNum = parseFloat(price);
-
+  
     if (isNaN(sizeNum) || sizeNum <= 0) {
       setTradeStatus("Please enter a valid size");
+      console.log("Invalid size entered:", size);
       return;
     }
     if (isNaN(priceNum) || priceNum <= 0) {
       setTradeStatus("Please enter a valid price");
+      console.log("Invalid price entered:", price);
       return;
     }
-
-    // Set order type conditionally:
+  
     const orderTypeObject =
       orderType === 'Market'
         ? { limit: { tif: "FrontendMarket" } }
         : { limit: { tif: "Gtc" } };
-
+  
+    console.log("Placing order with details:", {
+      coin: fullSymbol,
+      is_buy: isBuy,
+      sz: sizeNum,
+      limit_px: priceNum,
+      order_type: orderTypeObject,
+      reduce_only: false,
+    });
+  
     try {
-      const result = await sdk.exchange.placeOrder({ 
+      const result = await sdk.exchange.placeOrder({
         coin: fullSymbol,
         is_buy: isBuy,
         sz: sizeNum,
@@ -147,35 +194,94 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
       });
       const error = result?.response?.data?.statuses?.[0]?.error;
       setTradeStatus(error ? `Failed to place order: ${error}` : "Order placed successfully!");
+      console.log("Order result:", result);
     } catch (error: any) {
       setTradeStatus(`Failed to place order: ${error.message ?? "Unknown error"}`);
+      console.error("Error placing order:", error);
     }
   };
 
   const handleSizeChange = (value: string) => {
-    setSize(value);
+    const regex = new RegExp(`^\\d+(\\.\\d{0,${szDecimals}})?$`);
+    if (regex.test(value)) {
+      setSize(value);
+    } else {
+      console.log(`Invalid size entered for ${szDecimals} decimals:`, value);
+    }
   };
 
-  // Allow onChangeText for price only when the order is Limit.
   const handlePriceChange = (value: string) => {
+    // Let the user type incomplete inputs without auto-correction.
+    if (
+      value === '' ||
+      value === '.' ||
+      value.startsWith('.') ||
+      value.endsWith('.')
+    ) {
+      setPrice(value);
+      return;
+    }
+  
+    // Try to parse the input as a number.
+    const priceNum = parseFloat(value);
+    if (isNaN(priceNum)) {
+      console.log("Invalid number");
+      return;
+    }
+  
+    // Base maximum allowed decimals from the asset:
+    const baseMaxDecimals = 8 - szDecimals;
+    let allowedDecimals;
+  
+    // Split the input into integer and fractional parts.
+    const parts = value.split('.');
+    let intPart = parts[0];
+    // Remove any leading zeros (if any) from the integer part.
+    intPart = intPart.replace(/^0+/, '') || '0';
+  
+    if (priceNum >= 1) {
+      // For numbers ≥ 1, count the number of digits in the integer part.
+      const intDigits = intPart.length;
+      // Dynamic allowed decimals = 5 - intDigits (to have 5 total significant digits)
+      const dynAllowed = 5 - intDigits;
+      allowedDecimals = dynAllowed < 0 ? 0 : Math.min(baseMaxDecimals, dynAllowed);
+    } else {
+      // For numbers less than 1, we count significant digits in the fractional part.
+      const fraction = parts[1] || "";
+      const trimmedFraction = fraction.replace(/^0+/, '');
+      const sigDigits = trimmedFraction.length; // number of significant digits entered so far
+      
+      if (sigDigits >= 5) {
+        // Ensure we do not exceed `allowedDecimals` even when correcting with toPrecision(5)
+        const corrected = Number(priceNum.toPrecision(Math.min(5, baseMaxDecimals))).toFixed(Math.min(5, baseMaxDecimals));
+        setPrice(corrected);
+        console.log(`Corrected price (for <1) to ${Math.min(5, baseMaxDecimals)} significant digits: ${corrected}`);
+        return;
+      } else {
+        // Otherwise, allow up to baseMaxDecimals
+        allowedDecimals = baseMaxDecimals;
+      }
+    }
+  
+    // Now, if a fractional part exists, check if its length exceeds the allowed decimals.
+    if (parts.length === 2 && parts[1].length > allowedDecimals) {
+      // Ensure rounding does not exceed allowed decimals
+      const corrected = priceNum.toFixed(allowedDecimals);
+      setPrice(corrected);
+      console.log(`Corrected price: ${corrected} (allowed decimals: ${allowedDecimals})`);
+      return;
+    }
+  
+    // Otherwise, accept the entered value.
     setPrice(value);
-  };
+    console.log(`Price accepted: ${value} (allowed decimals: ${allowedDecimals})`);
+};
+
+  
+  
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.dropdownButton}>
-          <Text style={styles.headerText}>{activeAssetData?.leverage?.value || "0"}x</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.dropdownButton}
-          onPress={() => setMarginType(marginType === 'Cross' ? 'Isolated' : 'Cross')}
-        >
-          <Text style={styles.headerText}>{marginType}</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* Toggle Buttons */}
       <View style={styles.toggleContainer}>
         <TouchableOpacity style={[styles.toggleButton, isBuy && styles.activeBuy]} onPress={() => setIsBuy(true)}>
@@ -190,7 +296,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
       <View style={styles.balanceRow}>
         <Text style={styles.label}>Avbl</Text>
         <Text style={styles.value}>
-          {(isBuy ? activeAssetData?.availableToTrade?.[0] : activeAssetData?.availableToTrade?.[1]) || '0.000'} USDC
+          {availableBalance} {isBuy ? 'USDC' : sdksymbol}
         </Text>
       </View>
 
@@ -212,7 +318,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
             <TextInput
               style={styles.input}
               keyboardType="numeric"
-              value={price}
+              value={price} 
               onChangeText={handlePriceChange}
             />
           </View>
@@ -222,11 +328,14 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
       {/* Amount Input */}
       <View style={styles.inputContainer}>
         <View style={[styles.inputRow, { justifyContent: 'space-between' }]}>
-          <Text style={styles.label}>Amount {symbol}</Text>
-          <TouchableOpacity style={styles.maxButton} onPress={() => {
-            const max = isBuy ? activeAssetData?.maxTradeSzs?.[0] : activeAssetData?.maxTradeSzs?.[1];
-            setSize(max?.toString() || '0.00');
-          }}>
+          <Text style={styles.label}>Amount {sdksymbol}</Text>
+          <TouchableOpacity
+            style={styles.maxButton}
+            onPress={() => {
+              // Use max trade size based on our computed available balance.
+              setSize(isBuy ? maxTradeSize : maxTradeSizesell);
+            }}
+          >
             <Text style={styles.maxButtonText}>Max</Text>
           </TouchableOpacity>
         </View>
@@ -254,14 +363,15 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
       <View style={styles.row}>
         <Text style={styles.orderButtonSubtext}>Max</Text>
         <Text style={styles.orderButtonValue}>
-          {(isBuy ? activeAssetData?.maxTradeSzs?.[0] : activeAssetData?.maxTradeSzs?.[1]) || '0.000'} {symbol}
+        {isBuy ? maxTradeSize : maxTradeSizesell}
+        {sdksymbol}
         </Text>
       </View>
 
       {/* Order Button */}
       <TouchableOpacity style={[styles.orderButton, isBuy ? styles.buyButton : styles.sellButton]} onPress={placeOrder}>
         <Text style={styles.orderButtonText}>
-          {isBuy ? 'Buy / Long' : 'Sell / Short'}
+          {isBuy ? 'Buy ' : 'Sell'}
         </Text>
       </TouchableOpacity>
 
@@ -281,19 +391,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#1E1E2F",
     padding: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  headerText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  dropdownButton: {
-    padding: 8,
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -368,10 +465,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 4,
     fontSize: 16,
-  },
-  disabledInput: {
-    backgroundColor: '#444444',
-    color: '#888888',
   },
   maxButton: {
     backgroundColor: '#333333',
@@ -459,4 +552,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default TradingInterface;
+export default SpotTradingInterface;

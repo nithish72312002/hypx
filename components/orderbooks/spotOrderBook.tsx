@@ -9,7 +9,9 @@ interface OrderBookProps {
 }
 const { width } = Dimensions.get('window');
 const { height } = Dimensions.get('window');
-const OrderBook: React.FC<OrderBookProps> = ({
+
+
+const SpotOrderBook: React.FC<OrderBookProps> = ({
   symbol,
   onPriceSelect, // Destructure the new prop
 
@@ -26,6 +28,10 @@ const OrderBook: React.FC<OrderBookProps> = ({
     const wsManager = WebSocketManager.getInstance();
 
     const orderBookListener = (data: any) => {
+
+        if (data.coin !== symbol) {
+            return; // Ignore data for other symbols
+          }
       if (data.levels && Array.isArray(data.levels)) {
         const [bidsData, asksData] = data.levels;
         setBids(
@@ -179,7 +185,7 @@ const styles =  StyleSheet.create({
       alignItems: "center",
     },
     midPriceText: {
-      fontSize: width * 0.027,
+      fontSize: width * height * 0.00003,
       fontWeight: "bold",
       color: "#FFD700",
     },
@@ -210,17 +216,17 @@ const styles =  StyleSheet.create({
       backgroundColor: "#4CAF50",
     },
     priceText: {
-      fontSize: width * 0.027,
+      fontSize: width * height * 0.00003,
       fontWeight: "bold",
       color: "#FFFFFF",
     },
     amountText: {
-      fontSize: width * 0.027,
+      fontSize: width * height * 0.00003,
       color: "#FFFFFF",
       textAlign: "right",
     },
     loadingText: {
-      fontSize: width * 0.027,
+      fontSize: width * height * 0.00003,
       color: "#FFFFFF",
       marginTop: 8,
     },
@@ -232,4 +238,4 @@ const styles =  StyleSheet.create({
     },
   });
 
-export default OrderBook;
+export default SpotOrderBook;

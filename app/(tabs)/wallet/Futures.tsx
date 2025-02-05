@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import WebSocketManager from "@/api/WebSocketManager";
+import { useActiveAccount } from "thirdweb/react";
 
 interface FuturesTabProps {
   scrollEnabled?: boolean;
@@ -36,8 +37,16 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
   const [withdrawable, setWithdrawable] = useState(0);
   const [positions, setPositions] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
+  const account = useActiveAccount();
 
   useEffect(() => {
+
+    if (!account?.address) {
+      // User is logged out, clear orders and positions.
+      setPositions([]);
+      setAssets([]);
+      return;
+    }
     const handleWebData2 = (data: any) => {
       try {
         const clearingState = data?.clearinghouseState;
@@ -102,7 +111,7 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
 
     manager.addListener("webData2", handleWebData2);
     return () => manager.removeListener("webData2", handleWebData2);
-  }, [manager]);
+  }, [ account?.address , manager]);
 
   // Calculate total PNL and update parent
   useEffect(() => {

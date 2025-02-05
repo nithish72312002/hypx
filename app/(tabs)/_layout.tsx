@@ -40,7 +40,7 @@ export default function TabLayout() {
 				}}
 			/>
 			<Tabs.Screen
-				name="trade"
+				name="trade/[symbol]"
 				options={{
 					title: "trade",
 					tabBarIcon: ({ color, focused }) => (

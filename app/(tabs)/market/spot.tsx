@@ -56,7 +56,7 @@ const SpotInfoPage: React.FC = () => {
   useEffect(() => {
     const fetchTokenMapping = async () => {
       try {
-        const response = await axios.post("https://api.hyperliquid.xyz/info", {
+        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
           type: "spotMetaAndAssetCtxs",
         });
 

@@ -1,11 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import {
-  StyleSheet,
-  View,
-  Text,
-  FlatList,
-  ListRenderItem,
-} from "react-native";
+import { StyleSheet, View, Text } from "react-native";
 import WebSocketManager from "@/api/WebSocketManager";
 
 interface OrderBookProps {
@@ -47,6 +41,10 @@ const OrderBookMarket: React.FC<OrderBookProps> = ({ symbol }) => {
     const wsManager = WebSocketManager.getInstance();
 
     const orderBookListener = (data: any) => {
+      if (data.coin !== symbol) {
+        return; // Ignore data for other symbols
+      }
+
       if (data?.levels && Array.isArray(data.levels)) {
         const [bidsData, asksData] = data.levels;
         const maxBidSize = Math.max(...bidsData.map((bid: any) => bid.sz), 1);
@@ -76,30 +74,22 @@ const OrderBookMarket: React.FC<OrderBookProps> = ({ symbol }) => {
       }
     };
 
-    wsManager.subscribe(
-      "l2Book",
-      { type: "l2Book", coin: symbol },
-      orderBookListener
-    );
+    wsManager.subscribe("l2Book", { type: "l2Book", coin: symbol }, orderBookListener);
     wsManager.subscribe("allMids", { type: "allMids" }, allMidsListener);
 
     return () => {
-      wsManager.unsubscribe(
-        "l2Book",
-        { type: "l2Book", coin: symbol },
-        orderBookListener
-      );
+      wsManager.unsubscribe("l2Book", { type: "l2Book", coin: symbol }, orderBookListener);
       wsManager.unsubscribe("allMids", { type: "allMids" }, allMidsListener);
     };
   }, [symbol]);
 
-  const renderBidRow: ListRenderItem<OrderBookLevel> = useCallback(
-    ({ item }) => {
+  const renderBidRow = useCallback(
+    (item: OrderBookLevel, index: number) => {
       const priceDecimals = calculateDecimals(item.px);
       const sizeDecimals = calculateDecimals(item.sz);
 
       return (
-        <View style={styles.row}>
+        <View style={styles.row} key={`bid-${index}`}>
           <View style={[styles.bidBar, { width: item.barWidth }]} />
           <Text style={[styles.text, styles.bidText]}>
             {item.px.toFixed(priceDecimals)}
@@ -113,13 +103,13 @@ const OrderBookMarket: React.FC<OrderBookProps> = ({ symbol }) => {
     []
   );
 
-  const renderAskRow: ListRenderItem<OrderBookLevel> = useCallback(
-    ({ item }) => {
+  const renderAskRow = useCallback(
+    (item: OrderBookLevel, index: number) => {
       const priceDecimals = calculateDecimals(item.px);
       const sizeDecimals = calculateDecimals(item.sz);
 
       return (
-        <View style={styles.row}>
+        <View style={styles.row} key={`ask-${index}`}>
           <View style={[styles.askBar, { width: item.barWidth }]} />
           <Text style={[styles.text, styles.askText]}>
             {item.px.toFixed(priceDecimals)}
@@ -137,7 +127,11 @@ const OrderBookMarket: React.FC<OrderBookProps> = ({ symbol }) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.text, styles.headerText]}>Bids</Text>
-        <Text style={[styles.text, styles.midText]} numberOfLines={1} ellipsizeMode="tail">
+        <Text
+          style={[styles.text, styles.midText]}
+          numberOfLines={1}
+          ellipsizeMode="tail"
+        >
           {midPrice !== null ? formatNumberDynamic(midPrice) : "--"}
         </Text>
         <Text style={[styles.text, styles.headerText]}>Asks</Text>
@@ -145,25 +139,13 @@ const OrderBookMarket: React.FC<OrderBookProps> = ({ symbol }) => {
 
       <View style={styles.body}>
         <View style={styles.column}>
-          <FlatList
-            data={bids}
-            keyExtractor={(_, index) => `bid-${index}`}
-            renderItem={renderBidRow}
-            maxToRenderPerBatch={15}
-            initialNumToRender={15}
-          />
+          {bids.map((bid, index) => renderBidRow(bid, index))}
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.column}>
-          <FlatList
-            data={asks}
-            keyExtractor={(_, index) => `ask-${index}`}
-            renderItem={renderAskRow}
-            maxToRenderPerBatch={15}
-            initialNumToRender={15}
-          />
+          {asks.map((ask, index) => renderAskRow(ask, index))}
         </View>
       </View>
     </View>
@@ -240,5 +222,9 @@ const styles = StyleSheet.create({
   askText: {
     color: "#FF4D4D",
     marginHorizontal: 6,
+  },
+  headerText: {
+    flex: 1,
+    textAlign: "center",
   },
 });

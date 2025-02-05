@@ -10,39 +10,126 @@ import {
   SafeAreaView,
   ScrollView,
 } from "react-native";
+import axios from "axios";
 import TradingInterface from "@/components/tradinginterface/tradinginterface";
 import { useLocalSearchParams } from "expo-router";
 import OrderBook from "@/components/orderbooks/OrderBook";
 import BottomSheet, { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import WebSocketManager from "@/api/WebSocketManager";
-import OpenOrdersPositionsTabs from "@/components/openorders/OpenOrdersPositionsTabs";
+import SpotTradingInterface from "@/components/tradinginterface/spottradinginterface";
+import SpotOrderBook from "@/components/orderbooks/spotOrderBook";
+import SpotTradeOpenOrdersHoldings from "@/components/openorders/OpenOrdersHoldingsTabs";
 
-interface PerpTokenData {
+interface SpotTokenData {
+  id: string;
   name: string;
   price: number;
   volume: number;
   change: number;
-  leverage: number;
 }
 
-const FuturesPage: React.FC = () => {
+const SpotPage: React.FC = () => {
   const { symbol } = useLocalSearchParams();
-  const [tokens, setTokens] = useState<PerpTokenData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
   const { symbol: initialSymbol } = useLocalSearchParams();
+  // Maintain two states: one for the symbol (id) and one for the token name.
   const [selectedSymbol, setSelectedSymbol] = useState(
-    initialSymbol?.toString() || "BTC"
+    initialSymbol?.toString() || "@2"
   );
-  const fullSymbol = `${selectedSymbol}-PERP`;
+  const [sdkSymbol, setSdkSymbol] = useState(
+    initialSymbol?.toString() || "LICK"
+  );
+  // We'll use sdkSymbol for display (header) and pass selectedSymbol to SDK components.
   const [price, setPrice] = useState("3400");
 
-  const filteredTokens = useMemo(
+  // States for spot tokens (for the bottom sheet)
+  const [spotTokens, setSpotTokens] = useState<SpotTokenData[]>([]);
+  const [tokenMapping, setTokenMapping] = useState<{ [key: string]: string }>({});
+  const [spotLoading, setSpotLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Fetch token mapping from API
+  useEffect(() => {
+    const fetchTokenMapping = async () => {
+      try {
+        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
+          type: "spotMetaAndAssetCtxs",
+        });
+        const mapping: { [key: string]: string } = {};
+        const tokensArray = response.data[0]?.tokens || [];
+        const universeArray = response.data[0]?.universe || [];
+
+        // Create a mapping from token index to token name
+        const tokenNameByIndex: { [key: number]: string } = {};
+        tokensArray.forEach((token: any) => {
+          tokenNameByIndex[token.index] = token.name;
+        });
+
+        // Use the first index in "tokens" array of universe to resolve names
+        universeArray.forEach((pair: any) => {
+          const [firstTokenIndex] = pair.tokens;
+          const resolvedName = tokenNameByIndex[firstTokenIndex] || "Unknown";
+          mapping[pair.name] = resolvedName;
+        });
+        setTokenMapping(mapping);
+      } catch (err) {
+        console.error("Error fetching token mapping:", err);
+      }
+    };
+
+    fetchTokenMapping();
+  }, []);
+
+  // Listen for spot tokens from websocket once the token mapping is available
+  useEffect(() => {
+    if (Object.keys(tokenMapping).length === 0) return;
+
+    const wsManager = WebSocketManager.getInstance();
+    const listener = (data: any) => {
+      try {
+        const { spotAssetCtxs } = data;
+
+        if (!spotAssetCtxs || !Array.isArray(spotAssetCtxs)) {
+          console.error("Invalid spotAssetCtxs format in WebSocket data.");
+          return;
+        }
+
+        const formattedTokens: SpotTokenData[] = spotAssetCtxs
+          .filter((ctx: any) => parseFloat(ctx.dayBaseVlm) > 0) // Only tokens with volume > 0
+          .map((ctx: any) => {
+            const { coin, markPx, dayBaseVlm, prevDayPx } = ctx;
+            const id = coin;
+            const name = tokenMapping[coin] || coin;
+            const price = markPx !== undefined ? parseFloat(markPx) : 0;
+            const volume = dayBaseVlm !== undefined ? parseFloat(dayBaseVlm) : 0;
+            const prevPrice = prevDayPx !== undefined ? parseFloat(prevDayPx) : 0;
+            const change = prevPrice > 0 ? ((price - prevPrice) / prevPrice) * 100 : 0;
+            return {
+              id,
+              name,
+              price,
+              volume,
+              change,
+            };
+          });
+        setSpotTokens(formattedTokens);
+        setSpotLoading(false);
+      } catch (err) {
+        console.error("Error processing spot websocket data:", err);
+      }
+    };
+
+    wsManager.addListener("webData2", listener);
+    return () => {
+      wsManager.removeListener("webData2", listener);
+    };
+  }, [tokenMapping]);
+
+  const filteredSpotTokens = useMemo(
     () =>
-      tokens.filter((token) =>
+      spotTokens.filter((token) =>
         token.name.toLowerCase().includes(searchQuery.toLowerCase())
       ),
-    [tokens, searchQuery]
+    [spotTokens, searchQuery]
   );
 
   const sheetRef = useRef<BottomSheet>(null);
@@ -51,50 +138,23 @@ const FuturesPage: React.FC = () => {
   const handleSnapPress = () => sheetRef.current?.snapToIndex(0);
   const handleClosePress = () => sheetRef.current?.close();
 
-  useEffect(() => {
-    const wsManager = WebSocketManager.getInstance();
-    const listener = (data: any) => {
-      try {
-        const { meta, assetCtxs } = data;
-        const formattedTokens = meta.universe
-          .map((token: any, index: number) => {
-            const ctx = assetCtxs[index] || {};
-            const { markPx, dayBaseVlm, prevDayPx } = ctx;
-            const price = markPx !== undefined ? parseFloat(markPx) : 0;
-            const volume = dayBaseVlm !== undefined ? parseFloat(dayBaseVlm) : 0;
-            const prevPrice = prevDayPx !== undefined ? parseFloat(prevDayPx) : 0;
-            const change = prevPrice > 0 ? ((price - prevPrice) / prevPrice) * 100 : 0;
-            return {
-              name: token.name || "Unknown",
-              price,
-              volume,
-              change,
-              leverage: token.maxLeverage || 0,
-            };
-          })
-          .filter((token: PerpTokenData) => token.volume > 0);
-        setTokens(formattedTokens);
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Error processing WebSocket data:", err);
-      }
-    };
-
-    wsManager.addListener("webData2", listener);
-    return () => {
-      wsManager.removeListener("webData2", listener);
-    };
+  // When a token is selected, update both selectedSymbol (id) and sdkSymbol (name)
+  const handleTokenSelect = useCallback((token: SpotTokenData) => {
+    setSelectedSymbol(token.id);
+    setSdkSymbol(token.name);
+    handleClosePress();
   }, []);
 
+  // Render a single spot token
   const RenderToken = React.memo(
     ({
       item,
       onPress,
     }: {
-      item: PerpTokenData;
-      onPress: (name: string) => void;
+      item: SpotTokenData;
+      onPress: (token: SpotTokenData) => void;
     }) => (
-      <TouchableOpacity onPress={() => onPress(item.name)}>
+      <TouchableOpacity onPress={() => onPress(item)}>
         <View style={styles.tokenRow}>
           <View style={styles.tokenColumn}>
             <Text style={styles.tokenName}>{item.name}/USDC</Text>
@@ -115,59 +175,38 @@ const FuturesPage: React.FC = () => {
     )
   );
 
-  const handleTokenSelect = useCallback((name: string) => {
-    const baseSymbol = name.replace(/-PERP$/, "");
-    setSelectedSymbol(baseSymbol);
-    handleClosePress();
-  }, []);
-
   const renderToken = useCallback(
-    ({ item }: { item: PerpTokenData }) => (
+    ({ item }: { item: SpotTokenData }) => (
       <RenderToken item={item} onPress={handleTokenSelect} />
     ),
     [handleTokenSelect]
   );
 
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-        <Text style={styles.loadingText}>Loading perpetual tokens...</Text>
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={[styles.container, { marginTop: StatusBar.currentHeight }]}>
       {/* Wrap all main content in a ScrollView */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
+        {/* Header displays the sdkSymbol (token name) */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleSnapPress}>
-            <Text style={styles.headerText}>{fullSymbol}</Text>
+            <Text style={styles.headerText}>{sdkSymbol}-SPOT</Text>
           </TouchableOpacity>
         </View>
 
         {/* Funding Row */}
-        <View style={styles.fundingRow}>
-          <Text style={styles.fundingText}>Funding/Countdown</Text>
-          
-          <Text style={styles.fundingText}>0.0064% 05:58:51</Text>
-        </View>
-
+    
         {/* Main Content */}
         <View style={styles.mainContent}>
           <View style={styles.orderBook}>
-            <OrderBook
-              symbol={selectedSymbol || "BTC"}
-              onPriceSelect={(selectedPrice) =>
-                setPrice(selectedPrice.toString())
-              }
+            <SpotOrderBook
+              // Pass the symbol (id) to SDK components
+              symbol={selectedSymbol || "@2"} 
+              onPriceSelect={(selectedPrice) => setPrice(selectedPrice.toString())}
             />
           </View>
           <View style={styles.tradingInterface}>
-            <TradingInterface
-              symbol={selectedSymbol || "BTC"}
+            <SpotTradingInterface sdksymbol={sdkSymbol}
+              symbol={selectedSymbol || "@2"}
               price={price}
               setPrice={setPrice}
             />
@@ -176,7 +215,7 @@ const FuturesPage: React.FC = () => {
 
         {/* Open Orders & Positions Tabs */}
         <View style={styles.tabsContainer}>
-          <OpenOrdersPositionsTabs symbol={selectedSymbol || "BTC"}/>
+          <SpotTradeOpenOrdersHoldings symbol={selectedSymbol || "@2"} />
         </View>
       </ScrollView>
 
@@ -199,12 +238,19 @@ const FuturesPage: React.FC = () => {
               onChangeText={setSearchQuery}
               value={searchQuery}
             />
-            <BottomSheetFlatList
-              data={filteredTokens}
-              keyExtractor={(item) => item.name}
-              renderItem={renderToken}
-              initialNumToRender={10}
-            />
+            {spotLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#4CAF50" />
+                <Text style={styles.loadingText}>Loading spot tokens...</Text>
+              </View>
+            ) : (
+              <BottomSheetFlatList
+                data={filteredSpotTokens}
+                keyExtractor={(item) => item.id}
+                renderItem={renderToken}
+                initialNumToRender={10}
+              />
+            )}
           </View>
         </BottomSheet>
       </View>
@@ -335,8 +381,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     textAlign: "center",
   },
-  // Use minHeight here so if there’s little or no content it’s at least 300px tall;
-  // if there are many orders/positions, the container will grow and the ScrollView will allow scrolling.
   tabsContainer: {
     minHeight: 500,
     backgroundColor: "#2E2E3A",
@@ -345,4 +389,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default FuturesPage;
+export default SpotPage;

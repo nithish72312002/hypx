@@ -4147,7 +4147,7 @@
   dependencies:
     "@tanstack/query-core" "5.62.16"
 
-"@thirdweb-dev/react-native-adapter@^1.5.1":
+"@thirdweb-dev/react-native-adapter@^1.5.3":
   version "1.5.3"
   resolved "https://registry.npmjs.org/@thirdweb-dev/react-native-adapter/-/react-native-adapter-1.5.3.tgz#72cfb5e1145a5a193d5584a1ffe2bf43f3b0bf03"
   integrity sha512-+BA/RtInItbnkv13GXo/jAiUl8WvKqt62iWo+6eWW4S97Eo9OkMJfoUc7psVDrenWdWUNNRPS6gLCRl3kUje5w==
@@ -10310,13 +10310,6 @@ react-native-document-picker@9.3.0:
   integrity sha512-X/j0xKn8cObckpHTNwE/hW9WzBiP6oKx820FYu1Nat43QnnHmmT6uozFgAUDcJfxmZGcEdLlbv0lNhnyRXJyyA==
   dependencies:
     invariant "^2.2.4"
-
-react-native-dotenv@^3.4.11:
-  version "3.4.11"
-  resolved "https://registry.npmjs.org/react-native-dotenv/-/react-native-dotenv-3.4.11.tgz#2e6c4eabd55d5f1bf109b3dd9141dadf9c55cdd4"
-  integrity sha512-6vnIE+WHABSeHCaYP6l3O1BOEhWxKH6nHAdV7n/wKn/sciZ64zPPp2NUdEUf1m7g4uuzlLbjgr+6uDt89q2DOg==
-  dependencies:
-    dotenv "^16.4.5"
 
 react-native-gesture-handler@~2.16.1:
   version "2.16.2"

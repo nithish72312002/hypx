@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Dimensions, StatusBar } from 'react-native';
 import { TabView, SceneMap } from 'react-native-tab-view';
 
 // Create scene components
 import Spot from './Spot';
 import FuturesLayout from './Futures';
+import { useActiveAccount } from 'thirdweb/react';
+import { useRouter } from 'expo-router';
 
 const renderScene = SceneMap({
   Spot: Spot,
@@ -14,7 +16,13 @@ const renderScene = SceneMap({
 const WalletScreen = () => {
   const [activeTab, setActiveTab] = useState<'Spot' | 'Futures'>('Spot');
   const [index, setIndex] = useState(0);
-  
+  const  account  = useActiveAccount();
+  const router = useRouter();
+  useEffect(() => {
+    if (!account?.address) {
+      router.push('/loginpage'); // Redirect to the login page
+    }
+  }, [account, router]);
   const routes = [
     { key: 'Spot', title: 'Spot' },
     { key: 'Futures', title: 'Futures' },

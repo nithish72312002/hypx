@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import WebSocketManager from "@/api/WebSocketManager";
+import { useActiveAccount } from "thirdweb/react";
 
 interface SpotTabProps {
   scrollEnabled?: boolean;
@@ -22,6 +23,7 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
   const [tokenMap, setTokenMap] = useState<Record<number, string>>({});
   const [totalValue, setTotalValue] = useState(0);
   const [totalPnl, setTotalPnl] = useState(0);
+  const account = useActiveAccount();
 
   useEffect(() => {
     const fetchTokenMetadata = async () => {
@@ -65,6 +67,14 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
 
         // Handle case with no spot balances
         if (!spotState) {
+          setAssets([]);
+          setTotalValue(0);
+          setTotalPnl(0);
+          return;
+        }
+
+        if (!account?.address) {
+          // User is logged out, clear orders and positions.
           setAssets([]);
           setTotalValue(0);
           setTotalPnl(0);
@@ -126,7 +136,7 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
       manager.removeListener("webData2", handleWebData2);
       clearTimeout(timeout);
     };
-  }, [manager, tokenMap]);
+  }, [manager, tokenMap , account?.address ]);
 
   const renderAssetItem = ({ item }: { item: any }) => {
     const hasPNL = item.pnlValue !== 0;

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import Spot from "./spot";
 import Perps from "./perps";

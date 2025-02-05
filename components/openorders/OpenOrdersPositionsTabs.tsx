@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity } from
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import WebSocketManager from "@/api/WebSocketManager";
 import { useHyperliquid } from "@/context/HyperliquidContext";
+import { useActiveAccount } from "thirdweb/react";
 
 interface Order {
   coin: string;
@@ -52,8 +53,15 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
 
   const [openOrders, setOpenOrders] = useState<Order[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
-
+  const account = useActiveAccount();
   useEffect(() => {
+
+    if (!account?.address) {
+      // User is logged out, clear orders and positions.
+      setOpenOrders([]);
+      setPositions([]);
+      return;
+    }
     const wsManager = WebSocketManager.getInstance();
     const listener = (data: any) => {
       if (data.openOrders) setOpenOrders(data.openOrders);
@@ -69,8 +77,10 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
       }
     };
     wsManager.addListener("webData2", listener);
-    return () => wsManager.removeListener("webData2", listener);
-  }, []);
+    return () => {
+      wsManager.removeListener("webData2", listener);
+    };
+  }, [account?.address]); 
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -143,35 +153,40 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
         </TouchableOpacity>
       </View>
       <ScrollView nestedScrollEnabled={true}>
-        {openOrders
-          .filter((order) => order.isTrigger === (subIndex === 1) &&
-          (!hideOtherSymbols || order.coin === symbol))
-          .map((order) => (
-            <View key={order.oid} style={styles.orderItem}>
-              <View style={styles.orderHeader}>
-                <Text style={styles.orderCoin}>{order.coin}USDT</Text>
-                <Text style={styles.orderType}>
-                  {order.orderType} / {order.side === "A" ? "Sell" : "Buy"}
-                </Text>
-                <Text style={styles.orderDate}>{formatDate(order.timestamp)}</Text>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => cancelOrder(order.oid , order.coin)}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.progressBar}>
-                <View style={styles.progressFill} />
-              </View>
-              <View style={styles.orderDetails}>
-                <Text style={styles.filledText}>
-                  Filled / Amount (${symbol}) 0.000 / {order.sz}
-                </Text>
-                <Text style={styles.priceText}>Price {order.limitPx}</Text>
-              </View>
-            </View>
-          ))}
+      {openOrders
+  .filter((order) =>
+    order.isTrigger === (subIndex === 1) &&
+    (!hideOtherSymbols || order.coin === symbol) &&
+    // Exclude spot orders that include "/" or "@" in the coin name.
+    (!order.coin.includes("/") && !order.coin.includes("@"))
+  )
+  .map((order) => (
+    <View key={order.oid} style={styles.orderItem}>
+      <View style={styles.orderHeader}>
+        <Text style={styles.orderCoin}>{order.coin}USDT</Text>
+        <Text style={styles.orderType}>
+          {order.orderType} / {order.side === "A" ? "Sell" : "Buy"}
+        </Text>
+        <Text style={styles.orderDate}>{formatDate(order.timestamp)}</Text>
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={() => cancelOrder(order.oid, order.coin)}
+        >
+          <Text style={styles.cancelButtonText}>Cancel</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={styles.progressBar}>
+        <View style={styles.progressFill} />
+      </View>
+      <View style={styles.orderDetails}>
+        <Text style={styles.filledText}>
+          Filled / Amount (${symbol}) 0.000 / {order.sz}
+        </Text>
+        <Text style={styles.priceText}>Price {order.limitPx}</Text>
+      </View>
+    </View>
+  ))}
+
       </ScrollView>
       {cancelStatus && <Text style={styles.statusText}>{cancelStatus}</Text>}
       {cancelallStatus && <Text style={styles.statusText}>{cancelallStatus}</Text>}

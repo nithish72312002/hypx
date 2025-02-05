@@ -24,7 +24,7 @@
 		"@react-navigation/native": "^6.0.2",
 		"@rneui/base": "^4.0.0-rc.8",
 		"@rneui/themed": "^4.0.0-rc.8",
-		"@thirdweb-dev/react-native-adapter": "^1.5.1",
+		"@thirdweb-dev/react-native-adapter": "^1.5.3",
 		"@walletconnect/react-native-compat": "^2.17.5",
 		"amazon-cognito-identity-js": "^6.3.12",
 		"axios": "^1.7.9",
