@@ -50,6 +50,8 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
   const [cancelallStatus, setcancelallStatus] = useState<string | null>(null);
   const [assetContexts, setAssetContexts] = useState<any[]>([]);
   const [metaUniverse, setMetaUniverse] = useState<any[]>([]);
+  const [closeallStatus, setcloseallStatus] = useState<string | null>(null);
+  const [closeStatus, setcloseStatus] = useState<string | null>(null);
 
   const [openOrders, setOpenOrders] = useState<Order[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -121,18 +123,87 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
 
   const cancelallOrder = async () => {
     if (!sdk) {
+      console.log("Close all positions failed: SDK not initialized");
       setcancelallStatus("SDK not initialized yet.");
       return;
     }
         
     try {
-      const result = await sdk.custom.cancelAllOrders(); // Removed the parameter {}
-      const error = result?.response?.data?.statuses?.[0]?.error;
-      setcancelallStatus(
-        error ? `Failed to cancel order: ${error}` : "All Orders cancelled successfully!"
-      );
+      console.log("Attempting to close all positions...");
+      // Using the closeAllPositions method with default slippage
+      const result = await sdk.custom.closeAllPositions();
+      console.log("Close all positions response:", result);
+      
+      // Check if there's any error in the response
+      if (result && Array.isArray(result)) {
+        // If result is an array of OrderResponse, it was successful
+        console.log("Successfully closed all positions");
+        setcancelallStatus("All positions closed successfully!");
+      } else {
+        console.error("Unexpected response format:", result);
+        setcancelallStatus("Failed to close positions: Unexpected response format");
+      }
     } catch (error: any) {
-      setcancelallStatus(`Failed to cancel order: ${error.message ?? "Unknown error"}`);
+      console.error("Error closing all positions:", error);
+      setcancelallStatus(`Failed to close positions: ${error.message ?? "Unknown error"}`);
+    }
+  };
+
+  const closeallOrder = async () => {
+    if (!sdk) {
+      console.log("Close all positions failed: SDK not initialized");
+      setcloseallStatus("SDK not initialized yet.");
+      return;
+    }
+        
+    try {
+      console.log("Attempting to close all positions...");
+      // Using the closeAllPositions method with default slippage
+      const result = await sdk.custom.closeAllPositions();
+      console.log("Close all positions response:", result);
+      
+      // Check if there's any error in the response
+      if (result && Array.isArray(result)) {
+        // If result is an array of OrderResponse, it was successful
+        console.log("Successfully closed all positions");
+        setcloseallStatus("All positions closed successfully!");
+      } else {
+        console.error("Unexpected response format:", result);
+        setcloseallStatus("Failed to close positions: Unexpected response format");
+      }
+    } catch (error: any) {
+      console.error("Error closing all positions:", error);
+      setcloseallStatus(`Failed to close positions: ${error.message ?? "Unknown error"}`);
+    }
+  };
+
+  const closePosition = async (coin: string) => {
+    if (!sdk) {
+      console.log(`Close position failed for ${coin}: SDK not initialized`);
+      setcloseStatus("SDK not initialized yet.");
+      return;
+    }
+        
+    try {
+      const closesymbol = `${coin}-PERP`;
+      console.log(`Attempting to close position for ${closesymbol}...`);
+      // Using marketClose with the coin symbol - pass symbol directly, not as an object
+      const result = await sdk.custom.marketClose(closesymbol);
+      console.log(`Market close response for ${closesymbol}:`, result);
+
+      // Handle the OrderResponse
+      if (result?.response?.data?.statuses?.[0]?.error) {
+        const error = result.response.data.statuses[0].error;
+        console.error(`Failed to close position for ${closesymbol}:`, error);
+        setcloseStatus(`Failed to close position: ${error}`);
+      } else {
+        console.log(`Successfully closed position for ${closesymbol}`);
+        setcloseStatus("Position closed successfully!");
+        // Optionally update the positions list if needed
+      }
+    } catch (error: any) {
+      console.error(`Error closing position for ${coin}:`, error);
+      setcloseStatus(`Failed to close position: ${error.message ?? "Unknown error"}`);
     }
   };
 
@@ -189,7 +260,9 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
 
       </ScrollView>
       {cancelStatus && <Text style={styles.statusText}>{cancelStatus}</Text>}
+      {closeStatus && <Text style={styles.statusText}>{closeStatus}</Text>}
       {cancelallStatus && <Text style={styles.statusText}>{cancelallStatus}</Text>}
+      {closeallStatus && <Text style={styles.statusText}>{closeallStatus}</Text>}
 
     </View>
   );
@@ -208,7 +281,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
       </View>
       <TouchableOpacity
         style={styles.closeAllButton}
-        onPress={() => console.log("Dummy Close All Pressed")}
+        onPress={closeallOrder}
       >
         <Text style={styles.closeAllText}>Close All</Text>
       </TouchableOpacity>
@@ -288,7 +361,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
               <TouchableOpacity style={styles.tpslButton}>
                 <Text style={styles.tpslText}>TP/SL</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.closeButton}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => closePosition(pos.position.coin)}>
                 <Text style={styles.closeButtonText}>Close</Text>
               </TouchableOpacity>
             </View>

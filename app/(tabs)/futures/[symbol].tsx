@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   positiveChange: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#4CAF50",
+    color: "#FFFFFF",
     backgroundColor: "#4CAF50",
     paddingVertical: 4,
     paddingHorizontal: 8,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
   negativeChange: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#FF6B6B",
+    color: "#FFFFFF",
     backgroundColor: "#FF6B6B",
     paddingVertical: 4,
     paddingHorizontal: 8,

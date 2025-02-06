@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import WebSocketManager from "@/api/WebSocketManager";
 import { useActiveAccount } from "thirdweb/react";
+import WalletActionButtons from '@/components/buttons/WalletActionButtons';
 
 interface SpotTabProps {
   scrollEnabled?: boolean;
@@ -230,12 +231,8 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
             : "0.00"
           }%)
         </Text>
-        <View style={styles.actionRow}>
-          {["Deposit", "Withdraw", "Transfer"].map((action) => (
-            <TouchableOpacity key={action} style={styles.actionButton}>
-              <Text style={styles.actionText}>{action}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.actionContainer}>
+          <WalletActionButtons />
         </View>
       </View>
 
@@ -249,9 +246,6 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
   );
 };
 
-
-
-// Keep the rest of your styles the same
 const styles = StyleSheet.create({
   dummyAsset: {
     opacity: 0.6,
@@ -338,44 +332,30 @@ const styles = StyleSheet.create({
     color: "#FF6838",
   },
   totalValue: {
-    color: '#666',
     fontSize: 14,
+    color: "#666",
     marginBottom: 4,
   },
   totalAmount: {
     fontSize: 24,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
+    fontWeight: "600",
+    color: "#000",
+    marginBottom: 8,
   },
   pnl: {
-    color: '#00C076',
     fontSize: 14,
-    fontWeight: '500',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 16,
-  },
-  actionButton: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    borderRadius: 8,
-    flex: 1,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: '#AB47BC',
-  },
-  actionText: {
-    color: '#AB47BC',
-    fontWeight: '500',
-    textAlign: 'center',
+    color: "#666",
+    marginBottom: 16,
   },
   header: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
+    marginBottom: 16,
+    margin: 10,
+  },
+  actionContainer: {
+    marginTop: -8,  // Adjust the top margin to compensate for the button container's margin
   },
 });
 

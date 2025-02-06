@@ -33,10 +33,10 @@ const SpotPage: React.FC = () => {
   const { symbol: initialSymbol } = useLocalSearchParams();
   // Maintain two states: one for the symbol (id) and one for the token name.
   const [selectedSymbol, setSelectedSymbol] = useState(
-    initialSymbol?.toString() || "@2"
+    initialSymbol?.toString() || "PURR/USDC"
   );
   const [sdkSymbol, setSdkSymbol] = useState(
-    initialSymbol?.toString() || "LICK"
+    initialSymbol?.toString() || "PURR"
   );
   // We'll use sdkSymbol for display (header) and pass selectedSymbol to SDK components.
   const [price, setPrice] = useState("3400");
@@ -200,13 +200,13 @@ const SpotPage: React.FC = () => {
           <View style={styles.orderBook}>
             <SpotOrderBook
               // Pass the symbol (id) to SDK components
-              symbol={selectedSymbol || "@2"} 
+              symbol={selectedSymbol || "@1"} 
               onPriceSelect={(selectedPrice) => setPrice(selectedPrice.toString())}
             />
           </View>
           <View style={styles.tradingInterface}>
             <SpotTradingInterface sdksymbol={sdkSymbol}
-              symbol={selectedSymbol || "@2"}
+              symbol={selectedSymbol || "@1"}
               price={price}
               setPrice={setPrice}
             />
@@ -215,7 +215,7 @@ const SpotPage: React.FC = () => {
 
         {/* Open Orders & Positions Tabs */}
         <View style={styles.tabsContainer}>
-          <SpotTradeOpenOrdersHoldings symbol={selectedSymbol || "@2"} />
+          <SpotTradeOpenOrdersHoldings symbol={selectedSymbol || "@1"} />
         </View>
       </ScrollView>
 
@@ -359,8 +359,8 @@ const styles = StyleSheet.create({
   positiveChange: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#4CAF50",
-    backgroundColor: "#4CAF50",
+    color: "#FFFFFF",
+    backgroundColor: "#34C759",
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 4,
@@ -369,8 +369,8 @@ const styles = StyleSheet.create({
   negativeChange: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#FF6B6B",
-    backgroundColor: "#FF6B6B",
+    color: "#FFFFFF",
+    backgroundColor: "#FF3B30",
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 4,

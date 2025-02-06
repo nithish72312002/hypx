@@ -6,9 +6,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  Dimensions,
 } from "react-native";
+import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import WebSocketManager from "@/api/WebSocketManager";
 import { useActiveAccount } from "thirdweb/react";
+import WalletActionButtons from '@/components/buttons/WalletActionButtons';
 
 interface FuturesTabProps {
   scrollEnabled?: boolean;
@@ -38,6 +41,20 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
   const [positions, setPositions] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const account = useActiveAccount();
+  const [index, setIndex] = useState(0);
+  const [routes] = useState([
+    { key: 'assets', title: 'Assets' },
+    { key: 'positions', title: 'Positions' },
+  ]);
+
+  const [totalValue, setTotalValue] = useState(0);
+  const [totalPnl, setTotalPnl] = useState(0);
+
+  useEffect(() => {
+    setTotalValue(accountValue);
+    const pnl = positions.reduce((sum, pos) => sum + pos.unrealizedPnl, 0);
+    setTotalPnl(pnl);
+  }, [accountValue, positions]);
 
   useEffect(() => {
 
@@ -264,6 +281,23 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
     );
   };
 
+  const renderAssetsScene = () => (
+    <View style={{ flex: 1 }}>
+      {renderAssets()}
+    </View>
+  );
+
+  const renderPositionsScene = () => (
+    <View style={{ flex: 1 }}>
+      {renderPositions()}
+    </View>
+  );
+
+  const renderScene = SceneMap({
+    assets: renderAssetsScene,
+    positions: renderPositionsScene,
+  });
+
   // --- MAIN RETURN ---
   if (loading) {
     return (
@@ -283,31 +317,40 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
   }
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.innerTabs}>
-        {["Assets", "Positions"].map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[
-              styles.innerTabButton,
-              activeInnerTab === tab && styles.activeInnerTab,
-            ]}
-            onPress={() => setActiveInnerTab(tab as "Assets" | "Positions")}
-          >
-            <Text
-              style={[
-                styles.innerTabText,
-                activeInnerTab === tab && styles.activeInnerTabText,
-              ]}
-            >
-              {tab}
-            </Text>
-          </TouchableOpacity>
-        ))}
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <Text style={styles.totalValue}>Est. Total Value</Text>
+        <Text style={styles.totalAmount}>${totalValue.toFixed(2)} USD</Text>
+        <Text style={styles.pnl}>
+          {totalPnl >= 0 ? "+" : "-"}${Math.abs(totalPnl).toFixed(2)} (
+          {totalValue !== 0
+            ? `${(totalPnl / totalValue) * 100 >= 0 ? "+" : "-"}${Math.abs((totalPnl / totalValue) * 100).toFixed(2)}`
+            : "0.00"
+          }%)
+        </Text>
+        <View style={styles.actionContainer}>
+          <WalletActionButtons />
+        </View>
       </View>
-
-      {/* Only render one list depending on the tab */}
-      {activeInnerTab === "Assets" ? renderAssets() : renderPositions()}
+      <TabView
+        navigationState={{ index, routes }}
+        renderScene={renderScene}
+        onIndexChange={(newIndex) => {
+          setIndex(newIndex);
+          setActiveInnerTab(newIndex === 0 ? "Assets" : "Positions");
+        }}
+        initialLayout={{ width: Dimensions.get('window').width }}
+        renderTabBar={props => (
+          <TabBar
+            {...props}
+            style={styles.tabBar}
+            indicatorStyle={styles.tabIndicator}
+            labelStyle={styles.tabLabel}
+            activeColor="#AB47BC"
+            inactiveColor="#666"
+          />
+        )}
+      />
     </View>
   );
 };
@@ -315,33 +358,52 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
 export default FuturesTab;
 
 const styles = StyleSheet.create({
-  wrapper: {
+  container: {
     flex: 1,
-    padding: 10,
     backgroundColor: "#f5f5f5",
   },
-  innerTabs: {
-    flexDirection: "row",
+  header: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 16,
-    backgroundColor: "#fff",
+    margin: 10,
+  },
+  totalValue: {
+    fontSize: 14,
+    color: "#666",
+    marginBottom: 4,
+  },
+  totalAmount: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#000",
+    marginBottom: 4,
+  },
+  pnl: {
+    fontSize: 16,
+    color: "#00C076",
+    marginBottom: 16,
+  },
+  actionContainer: {
+    marginTop: -8,  // Adjust the top margin to compensate for the button container's margin
+  },
+  tabBar: {
+    backgroundColor: '#fff',
+    elevation: 0,
+    shadowOpacity: 0,
+    marginBottom: 16,
     borderRadius: 8,
     padding: 4,
   },
-  innerTabButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 6,
-    alignItems: "center",
+  tabIndicator: {
+    backgroundColor: '#AB47BC',
+    height: 3,
+    borderRadius: 3,
   },
-  activeInnerTab: {
-    backgroundColor: "#AB47BC",
-  },
-  innerTabText: {
-    color: "#666",
-    fontWeight: "500",
-  },
-  activeInnerTabText: {
-    color: "#fff",
+  tabLabel: {
+    fontWeight: '500',
+    textTransform: 'capitalize',
   },
   assetContainer: {
     backgroundColor: "#fff",
