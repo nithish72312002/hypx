@@ -138,7 +138,7 @@ const FuturesPage: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { marginTop: StatusBar.currentHeight }]}>
+    <View style={styles.container}>
       {/* Wrap all main content in a ScrollView */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
@@ -208,7 +208,7 @@ const FuturesPage: React.FC = () => {
           </View>
         </BottomSheet>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

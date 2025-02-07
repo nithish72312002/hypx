@@ -1,18 +1,33 @@
-import { Tabs } from "expo-router";
-import React from "react";
+import { Tabs, useRouter, usePathname } from "expo-router";
+import React, { useEffect } from "react";
 
 import { TabBarIcon } from "@/components/navigation/TabBarIcon";
 import { Colors } from "@/constants/Colors";
 import { useColorScheme } from "@/hooks/useColorScheme";
+import { useActiveAccount } from "thirdweb/react";
 
 export default function TabLayout() {
 	const colorScheme = useColorScheme();
+	const account = useActiveAccount();
+	const address = account?.address;
+	const router = useRouter();
+	const pathname = usePathname();
+
+	const handleTabPress = (e: any) => {
+		if (e.target?.toString().includes('wallet') && !address) {
+			e.preventDefault();
+			router.push("/loginpage");
+		}
+	};
 
 	return (
 		<Tabs
 			screenOptions={{
 				tabBarActiveTintColor: Colors[colorScheme ?? "light"].tint,
 				headerShown: false,
+			}}
+			screenListeners={{
+				tabPress: handleTabPress
 			}}
 		>
 			<Tabs.Screen

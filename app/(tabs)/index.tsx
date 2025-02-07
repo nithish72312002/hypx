@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import PagerView from 'react-native-pager-view';
 import WebSocketManager from "@/api/WebSocketManager";
 import { useRouter } from 'expo-router';
+import { useActiveAccount } from "thirdweb/react";
 
 const { width } = Dimensions.get('window');
 
@@ -61,6 +62,8 @@ const TabContent = ({ data, onNavigateToDetails, handleNavigatemarket }) => (
 
 const HomeScreen = () => {
   const router = useRouter();
+  const account = useActiveAccount();
+  const address = account?.address;
   const [activeTab, setActiveTab] = React.useState(0);
   const pagerRef = React.useRef(null);
   const [tokens, setTokens] = useState([]);
@@ -71,6 +74,14 @@ const HomeScreen = () => {
   const handleNavigateToDetails = (symbol: string) => {
     const encodedSymbol = encodeURIComponent(symbol); // Encode the symbol for safe routing
     router.push(`/details/${encodedSymbol}`);
+  };
+
+  const handleProfilePress = () => {
+    if (!address) {
+      router.push("/loginpage");
+    } else {
+      router.push("/profile");
+    }
   };
 
   const tabs = ['Favorites', 'Hot', 'Gainers', 'Losers', '24h Vol']; // Updated tabs
@@ -168,14 +179,30 @@ const HomeScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.profileButton}
+          onPress={() => {
+            if (!address) {
+              router.push("../loginpage");
+            } else {
+              router.push("../profile");
+            }
+          }}
+        >
+          <Text style={styles.profileIcon}>👤</Text>
+        </TouchableOpacity>
+        
         <View style={styles.searchContainer}>
-          <Icon name="search" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="#USBitcoinReserves"
-            placeholderTextColor="#666"
-          />
+          <View style={styles.searchInputWrapper}>
+            <Icon name="search" size={20} color="#666" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search"
+              placeholderTextColor="#666"
+            />
+          </View>
         </View>
+
         <TouchableOpacity style={styles.addFundsButton}>
           <Text style={styles.addFundsText}>Add Funds</Text>
         </TouchableOpacity>
@@ -238,18 +265,23 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    padding: 16,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    padding: 16,
+    gap: 8,
   },
   searchContainer: {
     flex: 1,
+    height: 40,
+    borderColor: '#1E1E2F',
+    borderWidth: 1,
+    borderRadius: 20,
+    marginHorizontal: 8,
+  },
+  searchInputWrapper: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
     paddingHorizontal: 12,
-    marginRight: 12,
   },
   searchIcon: {
     marginRight: 8,
@@ -257,13 +289,26 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     height: 40,
-    color: '#000',
+    color: '#FFFFFF',
+  },
+  profileButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#1E1E2F',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileIcon: {
+    fontSize: 20,
   },
   addFundsButton: {
+    height: 40,
     backgroundColor: '#F0B90B',
     paddingHorizontal: 16,
-    paddingVertical: 8,
     borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   addFundsText: {
     color: '#000',

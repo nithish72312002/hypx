@@ -1,7 +1,7 @@
 import { createThirdwebClient, getContract } from "thirdweb";
 import { base, baseSepolia } from "thirdweb/chains";
 import { setThirdwebDomains } from "thirdweb/utils";
-import { inAppWallet } from "thirdweb/wallets";
+import { inAppWallet, InAppWalletSocialAuth, WalletId } from "thirdweb/wallets";
 
 const clientId = process.env.EXPO_PUBLIC_THIRDWEB_CLIENT_ID!;
 
@@ -29,4 +29,17 @@ export const usdcContract = getContract({
   client,
 });
 
-export const inApp = inAppWallet();
+export const inApp = inAppWallet({
+  smartAccount: {
+    chain,
+    sponsorGas: true,
+  },
+});
+
+export const authStrategies: InAppWalletSocialAuth[] = ["google"];
+export const supportedWallets: WalletId[] = [
+  "io.metamask",
+  "me.rainbow",
+  "io.zerion.wallet",
+  "com.trustwallet.app",
+];

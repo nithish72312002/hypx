@@ -50,8 +50,18 @@ export default function RootLayout() {
 			<AppInitializer	/>
 			<HyperliquidProvider>
 			<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-				<Stack>
+				<Stack screenOptions={{
+					headerShown: false,
+					animation: 'slide_from_right'
+				}}>
 					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+					<Stack.Screen name="loginpage" options={{ 
+						headerShown: true,
+						title: 'Login',
+						headerBackVisible: true,
+						presentation: 'card',
+						animation: 'slide_from_right'
+					}} />
 					<Stack.Screen name="+not-found" />
 				</Stack>
 			</ThemeProvider>

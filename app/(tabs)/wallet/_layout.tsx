@@ -17,12 +17,7 @@ const WalletScreen = () => {
   const [activeTab, setActiveTab] = useState<'Spot' | 'Futures'>('Spot');
   const [index, setIndex] = useState(0);
   const  account  = useActiveAccount();
-  const router = useRouter();
-  useEffect(() => {
-    if (!account?.address) {
-      router.push('/loginpage'); // Redirect to the login page
-    }
-  }, [account, router]);
+
   const routes = [
     { key: 'Spot', title: 'Spot' },
     { key: 'Futures', title: 'Futures' },
@@ -34,7 +29,7 @@ const WalletScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {/* Header Section */}
         <View style={styles.tabContainer}>
           {routes.map((route, i) => (
@@ -65,7 +60,7 @@ const WalletScreen = () => {
         renderTabBar={() => null} // Hide default tab bar
         style={styles.tabView}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -84,7 +79,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F6FA',
-    marginTop:StatusBar.currentHeight,
     padding: 16,
   },
   

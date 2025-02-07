@@ -22,7 +22,7 @@ const WalletActionButtons: React.FC<WalletActionButtonsProps> = ({
   const [amount, setAmount] = useState('');
   const [withdrawableBalance, setWithdrawableBalance] = useState('0');
   const account = useActiveAccount();
-  const tokenAddress = "0x1870Dc7A474e045026F9ef053d5bB20a250Cc084";
+  const tokenAddress = "0x1baAbB04529D43a73232B713C0FE471f7c7334d5";
   const address = account?.address;
   const { data: tokenBalance, isLoading, isError } = useWalletBalance({
     chain: arbitrumSepolia,

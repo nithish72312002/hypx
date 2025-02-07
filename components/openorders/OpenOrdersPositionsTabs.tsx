@@ -131,7 +131,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
     try {
       console.log("Attempting to close all positions...");
       // Using the closeAllPositions method with default slippage
-      const result = await sdk.custom.closeAllPositions();
+      const result = await sdk.custom.cancelAllOrders();
       console.log("Close all positions response:", result);
       
       // Check if there's any error in the response
