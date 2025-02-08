@@ -44,13 +44,13 @@ export default function RootLayout() {
 
 		<SafeAreaProvider>
 		<ThirdwebProvider>
-			
-      <AgentWalletProvider>
-			<AppInitializer	/>
+			<AgentWalletProvider>
+			<AppInitializer>
 			<HyperliquidProvider>
 			<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
 				<Stack screenOptions={{
 					headerShown: false,
+					contentStyle: { backgroundColor: "transparent" },
 					animation: 'slide_from_right'
 				}}>
 					<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -86,6 +86,7 @@ export default function RootLayout() {
 				</Stack>
 			</ThemeProvider>
 			</HyperliquidProvider>
+			</AppInitializer>
 			</AgentWalletProvider>
 
 		</ThirdwebProvider>

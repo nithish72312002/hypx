@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, Modal } from 'react-native';
 import { useActiveAccount } from 'thirdweb/react';
 import WebSocketManager from '@/api/WebSocketManager';
 import { useHyperliquid } from '@/context/HyperliquidContext';
 import axios from 'axios';
+import { useApproveAgent } from '@/hooks/useApproveAgent';
+import { useAgentWalletContext } from '@/context/AgentWalletContext';
+import { useAppInitializer } from '@/components/AppInitializer';
+import { ethers } from 'ethers';
+import { savePrivateKey } from '@/utils/storage';
+import { router } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
@@ -42,28 +48,58 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
   const userAddress = account?.address || '0x0000000000000000000000000000000000000000';
   const { sdk } = useHyperliquid();
   const fullSymbol = `${symbol}-PERP`;
+  const { wallet, setWallet, loading: walletLoading, error: walletError } = useAgentWalletContext(); // Agent wallet from context
+  const { approveAgent } = useApproveAgent(); // Hook to approve the agent wallet
+  const { needsDeposit, checkDepositStatus } = useAppInitializer();
+
+  const [approvalCompleted, setApprovalCompleted] = useState(false);
+  const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
+
+  const handleEstablishConnection = () => {
+    setIsConnectionModalVisible(true);
+  };
+
+  const navigateToWallet = () => {
+    setIsConnectionModalVisible(false);
+    router.push('/wallet');
+  };
+
+  // Add useEffect to check user role when wallet or account changes
+  useEffect(() => {
+    if (walletLoading || !wallet || !account?.address) {
+      console.log("Agent wallet is still loading or external wallet not connected.");
+      return;
+    }
+
+    checkDepositStatus();
+  }, [wallet, walletLoading, account?.address]);
 
   useEffect(() => {
-    const fetchTokenDecimals = async () => {
-      if (!symbol) return;
-      try {
-        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
-          type: "meta",
-        });
-        const meta = response.data;
-        const token = meta.universe.find((t: any) => 
-          t.name.toUpperCase() === symbol.toUpperCase()
-        );
-        if (token) {
-          setSzDecimals(token.szDecimals);
-          console.log(`Token ${symbol} szDecimals:`, token.szDecimals);
-        } else {
-          console.warn(`Token ${symbol} not found in spot metadata.`);
-        }
-      } catch (error) {
-        console.error('Error fetching token decimals:', error);
+    console.log("State updated - approvalCompleted:", approvalCompleted);
+  }, [approvalCompleted]);
+
+  const fetchTokenDecimals = async () => {
+    if (!symbol) return;
+    try {
+      const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
+        type: "meta",
+      });
+      const meta = response.data;
+      const token = meta.universe.find((t: any) => 
+        t.name.toUpperCase() === symbol.toUpperCase()
+      );
+      if (token) {
+        setSzDecimals(token.szDecimals);
+        console.log(`Token ${symbol} szDecimals:`, token.szDecimals);
+      } else {
+        console.warn(`Token ${symbol} not found in spot metadata.`);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching token decimals:', error);
+    }
+  };
+
+  useEffect(() => {
     fetchTokenDecimals();
   }, [symbol]);
 
@@ -265,116 +301,174 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
     console.log(`Price accepted: ${value} (allowed decimals: ${allowedDecimals})`);
 };
 
+  const renderConnectionModal = () => (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isConnectionModalVisible}
+      onRequestClose={() => setIsConnectionModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setIsConnectionModalVisible(false)}
+          >
+            <Text style={styles.closeButtonText}>✕</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.modalTitle}>Deposit Required</Text>
+          <Text style={styles.modalText}>
+            You need to make a deposit to establish connection with Hyperliquid.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.depositButton}
+            onPress={navigateToWallet}
+          >
+            <Text style={styles.depositButtonText}>Go to Wallet</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.dropdownButton}>
-          <Text style={styles.headerText}>{activeAssetData?.leverage?.value || "0"}x</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.dropdownButton}
-          onPress={() => setMarginType(marginType === 'Cross' ? 'Isolated' : 'Cross')}
-        >
-          <Text style={styles.headerText}>{marginType}</Text>
-        </TouchableOpacity>
-      </View>
+      {renderConnectionModal()}
+      {/* Trading Interface */}
+      <View style={styles.tradingInterface}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.dropdownButton}>
+            <Text style={styles.headerText}>{activeAssetData?.leverage?.value || "0"}x</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => setMarginType(marginType === 'Cross' ? 'Isolated' : 'Cross')}
+          >
+            <Text style={styles.headerText}>{marginType}</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Toggle Buttons */}
-      <View style={styles.toggleContainer}>
-        <TouchableOpacity style={[styles.toggleButton, isBuy && styles.activeBuy]} onPress={() => setIsBuy(true)}>
-          <Text style={[styles.toggleText, isBuy && styles.activeText]}>Buy</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.toggleButton, !isBuy && styles.activeSell]} onPress={() => setIsBuy(false)}>
-          <Text style={[styles.toggleText, !isBuy && styles.activeText]}>Sell</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Toggle Buttons */}
+        <View style={styles.toggleContainer}>
+          <TouchableOpacity style={[styles.toggleButton, isBuy && styles.activeBuy]} onPress={() => setIsBuy(true)}>
+            <Text style={[styles.toggleText, isBuy && styles.activeText]}>Buy</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.toggleButton, !isBuy && styles.activeSell]} onPress={() => setIsBuy(false)}>
+            <Text style={[styles.toggleText, !isBuy && styles.activeText]}>Sell</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Balance Row */}
-      <View style={styles.balanceRow}>
-        <Text style={styles.label}>Avbl</Text>
-        <Text style={styles.value}>
-          {(isBuy ? activeAssetData?.availableToTrade?.[0] : activeAssetData?.availableToTrade?.[1]) || '0.000'} USDC
-        </Text>
-      </View>
+        {/* Balance Row */}
+        <View style={styles.balanceRow}>
+          <Text style={styles.label}>Avbl</Text>
+          <Text style={styles.value}>
+            {(isBuy ? activeAssetData?.availableToTrade?.[0] : activeAssetData?.availableToTrade?.[1]) || '0.000'} USDC
+          </Text>
+        </View>
 
-      {/* Order Type Selector */}
-      <View style={styles.orderTypeContainer}>
-        <TouchableOpacity
-          style={[styles.orderTypeButton, styles.activeOrderType]}
-          onPress={() => setOrderType(orderType === 'Limit' ? 'Market' : 'Limit')}
-        >
-          <Text style={styles.orderTypeText}>{orderType}</Text>
-        </TouchableOpacity>
-      </View>
+        {/* Order Type Selector */}
+        <View style={styles.orderTypeContainer}>
+          <TouchableOpacity
+            style={[styles.orderTypeButton, styles.activeOrderType]}
+            onPress={() => setOrderType(orderType === 'Limit' ? 'Market' : 'Limit')}
+          >
+            <Text style={styles.orderTypeText}>{orderType}</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Price Input */}
-      {orderType === 'Limit' && (
+        {/* Price Input */}
+        {orderType === 'Limit' && (
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Price (USDC)</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                keyboardType="numeric"
+                value={price}
+                onChangeText={handlePriceChange}
+                placeholder="Enter price"
+                placeholderTextColor="#666"
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Amount Input */}
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>Price (USDC)</Text>
+          <View style={[styles.inputRow, { justifyContent: 'space-between' }]}>
+            <Text style={styles.label}>Amount {symbol}</Text>
+            <TouchableOpacity style={styles.maxButton} onPress={() => {
+              const max = isBuy ? activeAssetData?.maxTradeSzs?.[0] : activeAssetData?.maxTradeSzs?.[1];
+              setSize(max?.toString() || '0.00');
+            }}>
+              <Text style={styles.maxButtonText}>Max</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.inputRow}>
             <TextInput
               style={styles.input}
               keyboardType="numeric"
-              value={price}
-              onChangeText={handlePriceChange}
+              value={size}
+              onChangeText={handleSizeChange}
+              placeholder="Enter amount"
+              placeholderTextColor="#666"
             />
           </View>
         </View>
-      )}
 
-      {/* Amount Input */}
-      <View style={styles.inputContainer}>
-        <View style={[styles.inputRow, { justifyContent: 'space-between' }]}>
-          <Text style={styles.label}>Amount {symbol}</Text>
-          <TouchableOpacity style={styles.maxButton} onPress={() => {
-            const max = isBuy ? activeAssetData?.maxTradeSzs?.[0] : activeAssetData?.maxTradeSzs?.[1];
-            setSize(max?.toString() || '0.00');
-          }}>
-            <Text style={styles.maxButtonText}>Max</Text>
+        {/* Options Row */}
+        <View style={styles.optionsContainer}>
+          <TouchableOpacity style={styles.optionButton} onPress={() => setIsReduceOnly(!isReduceOnly)}>
+            <View style={[styles.optionIndicator, isReduceOnly && styles.checkedIndicator]}>
+              {isReduceOnly && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.optionText}>Reduce Only</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            keyboardType="numeric"
-            value={size}
-            onChangeText={handleSizeChange}
-          />
+
+        {/* Max Row */}
+        <View style={styles.row}>
+          <Text style={styles.orderButtonSubtext}>Max</Text>
+          <Text style={styles.orderButtonValue}>
+            {(isBuy ? activeAssetData?.maxTradeSzs?.[0] : activeAssetData?.maxTradeSzs?.[1]) || '0.000'} {symbol}
+          </Text>
         </View>
+        {/* Order Button or Login Button */}
+        {!account?.address ? (
+          <TouchableOpacity 
+            style={[styles.orderButton, styles.loginButton]} 
+            onPress={() => router.push('/loginpage')}
+          >
+            <Text style={styles.orderButtonText}>Connect Wallet</Text>
+          </TouchableOpacity>
+        ) : needsDeposit ? (
+          <TouchableOpacity 
+            style={[styles.orderButton, styles.establishConnectionButton]} 
+            onPress={handleEstablishConnection}
+          >
+            <Text style={styles.orderButtonText}>Establish Connection</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={[styles.orderButton, isBuy ? styles.buyButton : styles.sellButton]} 
+            onPress={placeOrder}
+          >
+            <Text style={styles.orderButtonText}>
+              {isBuy ? 'Buy / Long' : 'Sell / Short'}
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Trade Status */}
+        {tradeStatus && (
+          <Text style={[styles.tradeStatus, tradeStatus.includes("successfully") ? styles.successText : styles.errorText]}>
+            {tradeStatus}
+          </Text>
+        )}
       </View>
-
-      {/* Options Row */}
-      <View style={styles.optionsContainer}>
-        <TouchableOpacity style={styles.optionButton} onPress={() => setIsReduceOnly(!isReduceOnly)}>
-          <View style={[styles.optionIndicator, isReduceOnly && styles.checkedIndicator]}>
-            {isReduceOnly && <Text style={styles.checkmark}>✓</Text>}
-          </View>
-          <Text style={styles.optionText}>Reduce Only</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Max Row */}
-      <View style={styles.row}>
-        <Text style={styles.orderButtonSubtext}>Max</Text>
-        <Text style={styles.orderButtonValue}>
-          {(isBuy ? activeAssetData?.maxTradeSzs?.[0] : activeAssetData?.maxTradeSzs?.[1]) || '0.000'} {symbol}
-        </Text>
-      </View>
-
-      {/* Order Button */}
-      <TouchableOpacity style={[styles.orderButton, isBuy ? styles.buyButton : styles.sellButton]} onPress={placeOrder}>
-        <Text style={styles.orderButtonText}>
-          {isBuy ? 'Buy / Long' : 'Sell / Short'}
-        </Text>
-      </TouchableOpacity>
-
-      {/* Trade Status */}
-      {tradeStatus && (
-        <Text style={[styles.tradeStatus, tradeStatus.includes("successfully") ? styles.successText : styles.errorText]}>
-          {tradeStatus}
-        </Text>
-      )}
     </View>
   );
 };
@@ -382,6 +476,11 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
 const styles = StyleSheet.create({
   container: {
     width: width * 0.48,
+    flex: 1,
+    backgroundColor: "#1E1E2F",
+    padding: 10,
+  },
+  tradingInterface: {
     flex: 1,
     backgroundColor: "#1E1E2F",
     padding: 10,
@@ -398,6 +497,11 @@ const styles = StyleSheet.create({
   },
   dropdownButton: {
     padding: 8,
+  },
+  dropdownButtonText: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '500',
   },
   toggleContainer: {
     flexDirection: 'row',
@@ -544,6 +648,12 @@ const styles = StyleSheet.create({
   sellButton: {
     backgroundColor: '#FF6B6B',
   },
+  establishConnectionButton: {
+    backgroundColor: '#2E2E3A',
+  },
+  loginButton: {
+    backgroundColor: '#2E2E3A',
+  },
   orderButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -560,6 +670,75 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#FF6B6B',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2E2E3A',
+    borderRadius: 16,
+    zIndex: 2,
+  },
+  closeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: 'bold',
+    lineHeight: 28,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#CCCCCC',
+    marginBottom: 24,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  depositButton: {
+    backgroundColor: '#00C076',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  depositButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  establishConnectionButton: {
+    backgroundColor: '#2E2E3A',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  establishConnectionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 

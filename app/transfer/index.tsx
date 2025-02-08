@@ -12,6 +12,7 @@ import { ethers } from 'ethers';
 import axios from 'axios';
 import { Alert } from 'react-native';
 import { useActiveAccount } from 'thirdweb/react';
+import { Toast } from '@/components/Toast';
 
 const TransferPage = () => {
   const [amount, setAmount] = useState('');
@@ -20,7 +21,21 @@ const TransferPage = () => {
   const [spotBalance, setSpotBalance] = useState('0');
   const [perpBalance, setPerpBalance] = useState('0');
   const [signStatus, setSignStatus] = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<'loading' | 'success'>('loading');
   const account = useActiveAccount();
+
+  const hideToast = () => {
+    setToastVisible(false);
+  };
+
+  const showToast = (message: string, type: 'loading' | 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setToastVisible(true);
+  };
+
   useEffect(() => {
     const wsManager = WebSocketManager.getInstance();
     const listener = (data: any) => {
@@ -70,12 +85,7 @@ const TransferPage = () => {
     }
   };
 
-
- 
-  // Add 170 days in milliseconds
-
-  const generateNonce = () => Date.now(); // Use the current time in milliseconds as nonce
-
+  const generateNonce = () => Date.now();
 
   const onClicktransfer = async () => {
     try {
@@ -84,9 +94,12 @@ const TransferPage = () => {
         return;
       }
 
-      const currentTimestamp = generateNonce(); // Current timestamp for nonce
-      
-      // Determine transfer direction (true for spot->perp, false for perp->spot)
+      // Show loading toast before starting transfer
+      setToastMessage('Processing transfer...');
+      setToastType('loading');
+      setToastVisible(true);
+
+      const currentTimestamp = generateNonce();
       const destination = fromWallet === 'Spot Wallet' ? true : false;
 
       const message = {
@@ -98,7 +111,6 @@ const TransferPage = () => {
         hyperliquidChain: "Testnet"
       };
 
-      // EIP-712 domain definition
       const domain = {
         name: "HyperliquidSignTransaction",
         version: "1",
@@ -106,7 +118,6 @@ const TransferPage = () => {
         verifyingContract: "0x0000000000000000000000000000000000000000"
       };
 
-      // EIP-712 types
       const types = {
         EIP712Domain: [
           { name: "name", type: "string" },
@@ -121,8 +132,7 @@ const TransferPage = () => {
           { name: "nonce", type: "uint64" }
         ]
       };
-console.log(destination)
-      // Sign the EIP-712 data
+
       const signature = await account.signTypedData({
         domain,
         message,
@@ -130,17 +140,14 @@ console.log(destination)
         types,
       });
 
-      // Split the signature into r, s, v components
       const { v, r, s } = ethers.Signature.from(signature);
 
-      // Construct the API payload exactly as per documentation
       const apiPayload = {
         action: message,
         nonce: currentTimestamp,
         signature: { r, s, v },
       };
 
-      // Send the payload to the API
       const apiUrl = "https://api.hyperliquid-testnet.xyz/exchange";
       const response = await axios.post(apiUrl, apiPayload, {
         headers: {
@@ -149,15 +156,16 @@ console.log(destination)
       });
 
       if (response.data?.status === 'ok') {
-        Alert.alert(
-          "Success", 
-          `Successfully transferred ${amount} USDC ${destination ? 'to Futures' : 'to Spot'} wallet`
-        );
+        // Show success toast
+        setToastMessage(`Successfully transferred ${amount} USDC ${destination ? 'to Futures' : 'to Spot'} wallet`);
+        setToastType('success');
+        setToastVisible(true);
       } else {
         throw new Error('Transfer failed: ' + JSON.stringify(response.data));
       }
     } catch (error) {
       console.error("Transfer Error:", error);
+      setToastVisible(false); // Hide toast on error
       Alert.alert("Error", error.message || "Failed to transfer. Please try again.");
     }
   };
@@ -212,6 +220,7 @@ console.log(destination)
               placeholder="0"
               placeholderTextColor="#666"
               keyboardType="decimal-pad"
+              editable={!toastVisible || toastType !== 'loading'}
             />
             <Text style={styles.currencyLabel}>USDC</Text>
             <TouchableOpacity 
@@ -220,8 +229,9 @@ console.log(destination)
                 const balance = fromWallet === 'Spot Wallet' ? spotBalance : perpBalance;
                 setAmount(balance);
               }}
+              disabled={toastVisible && toastType === 'loading'}
             >
-              <Text style={styles.maxButtonText}>Max</Text>
+              <Text style={[styles.maxButtonText, (toastVisible && toastType === 'loading') && { opacity: 0.5 }]}>Max</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.availableBalance}>{getAvailableBalance()}</Text>
@@ -234,10 +244,20 @@ console.log(destination)
             !amount && styles.confirmButtonDisabled,
           ]}
           onPress={onClicktransfer}
-          disabled={!amount}
+          disabled={!amount || parseFloat(amount) <= 0 || (toastVisible && toastType === 'loading')}
         >
           <Text style={styles.confirmButtonText}>Confirm Transfer</Text>
         </TouchableOpacity>
+      </View>
+      <View style={styles.toastContainer}>
+        {toastVisible && (
+          <Toast 
+            visible={toastVisible}
+            message={toastMessage}
+            type={toastType}
+            onHide={hideToast}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -249,7 +269,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E1E2F',
   },
   content: {
+    flex: 1,
     padding: 16,
+    position: 'relative',
+  },
+  toastContainer: {
+    position: 'absolute',
+    bottom: 100,
+    left: 0,
+    right: 0,
+    zIndex: 9999,
   },
   inputGroup: {
     marginBottom: 24,
