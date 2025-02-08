@@ -41,16 +41,7 @@ const ProfileScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Stack.Screen 
-        options={{
-          title: 'Account Center',
-          headerStyle: {
-            backgroundColor: '#fff',
-          },
-          headerTintColor: '#000',
-        }} 
-      />
-
+      
       <View style={styles.profileCard}>
         <View style={styles.profileHeader}>
           <View style={styles.avatarContainer}>
