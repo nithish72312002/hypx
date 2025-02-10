@@ -1,19 +1,21 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { StyleSheet, View, Text, FlatList, ActivityIndicator, Dimensions, TouchableOpacity } from "react-native";
 import WebSocketManager from "@/api/WebSocketManager";
 
 interface OrderBookProps {
   symbol: string;
   onPriceSelect?: (price: number) => void;
-
+  tradeType?: 'Limit' | 'Market';
 }
+
 const { width } = Dimensions.get('window');
 const { height } = Dimensions.get('window');
 
 
 const SpotOrderBook: React.FC<OrderBookProps> = ({
   symbol,
-  onPriceSelect, // Destructure the new prop
+  onPriceSelect, 
+  tradeType = 'Limit', // Destructure the new prop
 
 }) => {
   const [bids, setBids] = useState<any[]>([]);
@@ -24,31 +26,35 @@ const SpotOrderBook: React.FC<OrderBookProps> = ({
 
  
 
+  const maxLevels = tradeType === 'Limit' ? 7 : 6;
+
+  const orderBookListener = useCallback((data: any) => {
+    if (!data || !data.levels) return;
+    
+    if (data.coin !== symbol) {
+      return; // Ignore data for other symbols
+    }
+
+    if (data.levels && Array.isArray(data.levels)) {
+      const [bidsData, asksData] = data.levels;
+      setBids(
+        bidsData.slice(0, maxLevels).map((level: any) => ({
+          px: parseFloat(level.px),
+          sz: parseFloat(level.sz),
+        }))
+      );
+      setAsks(
+        asksData.slice(0, maxLevels).map((level: any) => ({
+          px: parseFloat(level.px),
+          sz: parseFloat(level.sz),
+        }))
+      );
+      setIsLoading(false);
+    }
+  }, [symbol, maxLevels]);
+
   useEffect(() => {
     const wsManager = WebSocketManager.getInstance();
-
-    const orderBookListener = (data: any) => {
-
-        if (data.coin !== symbol) {
-            return; // Ignore data for other symbols
-          }
-      if (data.levels && Array.isArray(data.levels)) {
-        const [bidsData, asksData] = data.levels;
-        setBids(
-          bidsData.slice(0, 7).map((level: any) => ({
-            px: parseFloat(level.px),
-            sz: parseFloat(level.sz),
-          }))
-        );
-        setAsks(
-          asksData.slice(0, 7).map((level: any) => ({
-            px: parseFloat(level.px),
-            sz: parseFloat(level.sz),
-          }))
-        );
-      }
-      setIsLoading(false);
-    };
 
     const allMidsListener = (data: any) => {
       if (data?.mids && data.mids[symbol]) {
@@ -73,7 +79,7 @@ const SpotOrderBook: React.FC<OrderBookProps> = ({
       );
       wsManager.unsubscribe("allMids", { type: "allMids" }, allMidsListener);
     };
-  }, [symbol]);
+  }, [symbol, orderBookListener]);
 
   const renderOrder = (
     { item }: { item: any; index: number },
@@ -140,6 +146,14 @@ const SpotOrderBook: React.FC<OrderBookProps> = ({
   return (
     <View style={styles.container}>
       <View style={styles.orderBookContainer}>
+        <View style={styles.headerRow}>
+          <View style={styles.headerCell}>
+            <Text style={styles.headerText}>Price</Text>
+          </View>
+          <View style={styles.headerCell}>
+            <Text style={[styles.headerText, styles.amountHeaderText]}>Amount</Text>
+          </View>
+        </View>
         <FlatList
           data={asks}
           keyExtractor={(_, index) => `ask-${index}`}
@@ -165,8 +179,7 @@ const SpotOrderBook: React.FC<OrderBookProps> = ({
 
 const styles =  StyleSheet.create({
     container: {
-      width: width * 0.45,
-      height: height * 0.5,
+       flex: 1,
       backgroundColor: "#1E1E2F",
       borderRadius: 10,
       paddingVertical: 10,
@@ -180,12 +193,13 @@ const styles =  StyleSheet.create({
     midPriceContainer: {
       backgroundColor: "#2E2E3A",
       borderRadius: 5,
-      paddingVertical: 4,
-      marginVertical: 8,
+      paddingVertical: 12,
+      marginVertical: 14,
       alignItems: "center",
+      width: "100%",
     },
     midPriceText: {
-      fontSize: width * height * 0.00003,
+      fontSize: 20,
       fontWeight: "bold",
       color: "#FFD700",
     },
@@ -235,6 +249,22 @@ const styles =  StyleSheet.create({
     },
     bidText: {
       color: "#4CAF50",
+    },
+    headerRow: {
+      flexDirection: 'row',
+      paddingHorizontal: 6,
+      position: "relative",
+    },
+    headerCell: {
+      flex: 1,
+    },
+    headerText: {
+      color: '#B7BDC6',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    amountHeaderText: {
+      textAlign: 'right',
     },
   });
 

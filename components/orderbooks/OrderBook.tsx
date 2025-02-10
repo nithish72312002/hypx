@@ -5,15 +5,17 @@ import WebSocketManager from "@/api/WebSocketManager";
 interface OrderBookProps {
   symbol: string;
   onPriceSelect?: (price: number) => void;
-
+  tradeType?: 'Limit' | 'Market';
 }
+
 const { width } = Dimensions.get('window');
 const { height } = Dimensions.get('window');
 
 
 const OrderBook: React.FC<OrderBookProps> = ({
   symbol,
-  onPriceSelect, // Destructure the new prop
+  onPriceSelect,
+  tradeType = 'Limit', // Destructure the new prop
 
 }) => {
   const [bids, setBids] = useState<any[]>([]);
@@ -24,42 +26,43 @@ const OrderBook: React.FC<OrderBookProps> = ({
 
  
 
+  const maxLevels = tradeType === 'Limit' ? 8 : 6;
+
   useEffect(() => {
     const wsManager = WebSocketManager.getInstance();
 
     const orderBookListener = (data: any) => {
-
-
+      if (!data || !data.levels) return;
+      
       if (data.coin !== symbol) {
         return; // Ignore data for other symbols
       }
 
+      if (data.levels && Array.isArray(data.levels)) {
+        const [bidsData, asksData] = data.levels;
+        setBids(
+          bidsData.slice(0, maxLevels).map((level: any) => ({
+            px: parseFloat(level.px),
+            sz: parseFloat(level.sz),
+          }))
+        );
+        setAsks(
+          asksData.slice(0, maxLevels).map((level: any) => ({
+            px: parseFloat(level.px),
+            sz: parseFloat(level.sz),
+          }))
+        );
+        setIsLoading(false);
+      }
+    };
 
-  if (data.levels && Array.isArray(data.levels)) {
-    const [bidsData, asksData] = data.levels;
-    setBids(
-      bidsData.slice(0, 7).map((level: any) => ({
-        px: parseFloat(level.px),
-        sz: parseFloat(level.sz),
-      }))
-    );
-    setAsks(
-      asksData.slice(0, 7).map((level: any) => ({
-        px: parseFloat(level.px),
-        sz: parseFloat(level.sz),
-      }))
-    );
-  }
-  setIsLoading(false);
-};
-
-const allMidsListener = (data: any) => {
-  if (data?.mids && data.mids[symbol]) {
-    setMidPrice(parseFloat(data.mids[symbol]));
-  } else {
-    setMidPrice(NaN);
-  }
-};
+    const allMidsListener = (data: any) => {
+      if (data?.mids && data.mids[symbol]) {
+        setMidPrice(parseFloat(data.mids[symbol]));
+      } else {
+        setMidPrice(NaN);
+      }
+    };
 
 
 
@@ -79,7 +82,7 @@ const allMidsListener = (data: any) => {
       );
       wsManager.unsubscribe("allMids", { type: "allMids" }, allMidsListener);
     };
-  }, [symbol]);
+  }, [symbol, tradeType]);
 
   const renderOrder = (
     { item }: { item: any; index: number },
@@ -110,10 +113,14 @@ const allMidsListener = (data: any) => {
             { width: barWidth },
           ]}
         />
-        <Text style={[styles.priceText, isAsk ? styles.askText : styles.bidText]}>
-          {item.px}
-        </Text>
-        <Text style={styles.amountText}>{item.sz}</Text>
+        <View style={styles.priceCell}>
+          <Text style={[styles.priceText, isAsk ? styles.askText : styles.bidText]}>
+            {item.px}
+          </Text>
+        </View>
+        <View style={styles.amountCell}>
+          <Text style={styles.amountText}>{item.sz}</Text>
+        </View>
       </View></TouchableOpacity>
     );
   };
@@ -146,6 +153,14 @@ const allMidsListener = (data: any) => {
   return (
     <View style={styles.container}>
       <View style={styles.orderBookContainer}>
+        <View style={styles.headerRow}>
+          <View style={styles.headerCell}>
+            <Text style={styles.headerText}>Price</Text>
+          </View>
+          <View style={styles.headerCell}>
+            <Text style={[styles.headerText, styles.amountHeaderText]}>Amount</Text>
+          </View>
+        </View>
         <FlatList
           data={asks}
           keyExtractor={(_, index) => `ask-${index}`}
@@ -155,7 +170,7 @@ const allMidsListener = (data: any) => {
         />
         <View style={styles.midPriceContainer}>
           <Text style={styles.midPriceText}>
-            {midPrice !== null ? midPrice : "NaN"}
+            {midPrice !== null ? midPrice.toFixed(2) : "NaN"}
           </Text>
         </View>
         <FlatList
@@ -171,8 +186,7 @@ const allMidsListener = (data: any) => {
 
 const styles =  StyleSheet.create({
     container: {
-      width: width * 0.45,
-      height: height * 0.5,
+      flex: 1,
       backgroundColor: "#1E1E2F",
       borderRadius: 10,
       paddingVertical: 10,
@@ -186,14 +200,15 @@ const styles =  StyleSheet.create({
     midPriceContainer: {
       backgroundColor: "#2E2E3A",
       borderRadius: 5,
-      paddingVertical: 4,
-      marginVertical: 8,
+      paddingVertical: 12,
+      marginVertical: 14,
       alignItems: "center",
+      width: "100%",
     },
     midPriceText: {
-      fontSize: width * height * 0.000024,
+      fontSize: 20,
       fontWeight: "bold",
-      color: "#FFD700",
+      color: "#4CAF50",
     },
     errorText: {
       color: "#FF6B6B",
@@ -241,6 +256,28 @@ const styles =  StyleSheet.create({
     },
     bidText: {
       color: "#4CAF50",
+    },
+    headerRow: {
+      flexDirection: 'row',
+      paddingHorizontal: 6,
+      position: "relative",
+    },
+    headerCell: {
+      flex: 1,
+    },
+    headerText: {
+      color: '#B7BDC6',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    amountHeaderText: {
+      textAlign: 'right',
+    },
+    priceCell: {
+      flex: 1,
+    },
+    amountCell: {
+      flex: 1,
     },
   });
 

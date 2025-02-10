@@ -5,11 +5,8 @@ import WebSocketManager from '@/api/WebSocketManager';
 import { useHyperliquid } from '@/context/HyperliquidContext';
 import axios from 'axios';
 import { useApproveAgent } from '@/hooks/useApproveAgent';
-import { useAgentWalletContext } from '@/context/AgentWalletContext';
-import { useAppInitializer } from '@/components/AppInitializer';
-import { ethers } from 'ethers';
-import { savePrivateKey } from '@/utils/storage';
 import { router } from 'expo-router';
+import { useAgentWallet } from '@/hooks/useAgentWallet';
 
 const { width } = Dimensions.get('window');
 
@@ -48,15 +45,52 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
   const userAddress = account?.address || '0x0000000000000000000000000000000000000000';
   const { sdk } = useHyperliquid();
   const fullSymbol = `${symbol}-PERP`;
-  const { wallet, setWallet, loading: walletLoading, error: walletError } = useAgentWalletContext(); // Agent wallet from context
-  const { approveAgent } = useApproveAgent(); // Hook to approve the agent wallet
-  const { needsDeposit, checkDepositStatus } = useAppInitializer();
+  const { wallet, loading: walletLoading, error: walletError, createWallet } = useAgentWallet();
+  const { approveAgent } = useApproveAgent();
 
   const [approvalCompleted, setApprovalCompleted] = useState(false);
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
 
-  const handleEstablishConnection = () => {
-    setIsConnectionModalVisible(true);
+  const handleEstablishConnection = async () => {
+    if (walletLoading) {
+      console.log("Wallet is still loading...");
+      return;
+    }
+
+    try {
+      // If no wallet, create a new one
+      if (!wallet?.address) {
+        console.log("No wallet found, creating new wallet...");
+        const newWallet = await createWallet();
+        if (!newWallet) {
+          console.error("Failed to create wallet");
+          return;
+        }
+        console.log("New wallet created:", newWallet.address);
+      }
+
+      // Approve agent if we have a wallet
+      try {
+        console.log("Approving agent...");
+        const result = await approveAgent();
+        if (result) {
+          console.log("Agent approved successfully");
+          setApprovalCompleted(true);
+          setIsConnectionModalVisible(false);
+        }
+      } catch (error: any) {
+        console.error("Error during approval:", error.message);
+        setApprovalCompleted(false);
+        
+        if (error.message?.includes('Must deposit')) {
+          setIsConnectionModalVisible(true);
+        }
+        return; // Exit early on error
+      }
+    } catch (error) {
+      console.error('Error establishing connection:', error);
+      setApprovalCompleted(false);
+    }
   };
 
   const navigateToWallet = () => {
@@ -64,14 +98,53 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
     router.push('/wallet');
   };
 
-  // Add useEffect to check user role when wallet or account changes
+  // Query user role when wallet changes
+  useEffect(() => {
+    const queryUserRole = async () => {
+      if (!wallet?.address || !account?.address) return;
+      
+      try {
+        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
+          type: "userRole",
+          user: wallet.address
+        });
+        
+        console.log("User role response:", response.data);
+        console.log("Account address:", account.address);
+        console.log("Response user:", response.data?.data?.user);
+        
+        // Set approval based on response
+        if (response.data?.response === "Missing") {
+          console.log("User role missing, setting approval to false");
+          setApprovalCompleted(false);
+        } else if (response.data?.data?.user?.toLowerCase() === account.address?.toLowerCase()) {
+          console.log("User role matches account, setting approval to true");
+          setApprovalCompleted(true);
+        } else {
+          console.log("User role doesn't match account, setting approval to false");
+          console.log("Response user:", response.data?.data?.user?.toLowerCase());
+          console.log("Account address:", account.address?.toLowerCase());
+          setApprovalCompleted(false);
+        }
+      } catch (error) {
+        console.error("Error querying user role:", error);
+        setApprovalCompleted(false);
+      }
+    };
+
+    queryUserRole();
+  }, [wallet?.address, account?.address]);
+
+  useEffect(() => {
+    console.log("Modal visibility changed:", isConnectionModalVisible);
+  }, [isConnectionModalVisible]);
+
+  // Monitor wallet and account status
   useEffect(() => {
     if (walletLoading || !wallet || !account?.address) {
       console.log("Agent wallet is still loading or external wallet not connected.");
       return;
     }
-
-    checkDepositStatus();
   }, [wallet, walletLoading, account?.address]);
 
   useEffect(() => {
@@ -301,7 +374,48 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
     console.log(`Price accepted: ${value} (allowed decimals: ${allowedDecimals})`);
 };
 
-  const renderConnectionModal = () => (
+
+
+  const renderOrderButton = () => {
+    if (!account?.address) {
+      return (
+        <TouchableOpacity 
+          style={[styles.orderButton, styles.loginButton]} 
+          onPress={() => router.push('/loginpage')}
+        >
+          <Text style={styles.orderButtonText}>Connect Wallet</Text>
+        </TouchableOpacity>
+      );
+    }
+
+    if (!wallet?.address || !approvalCompleted) {
+      return (
+        <TouchableOpacity 
+          style={[styles.orderButton, styles.establishConnectionButton]} 
+          onPress={handleEstablishConnection}
+          disabled={walletLoading}
+        >
+          <Text style={styles.orderButtonText}>
+            {walletLoading ? 'Loading...' : 'Establish Connection'}
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+
+    return (
+      <TouchableOpacity 
+        style={[styles.orderButton, isBuy ? styles.buyButton : styles.sellButton]} 
+        onPress={placeOrder}
+      >
+        <Text style={styles.orderButtonText}>
+          {isBuy ? 'Buy/Long' : 'Sell/Short'} {symbol}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
     <Modal
       animationType="slide"
       transparent={true}
@@ -331,12 +445,6 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
         </View>
       </View>
     </Modal>
-  );
-
-  return (
-    <View style={styles.container}>
-      {renderConnectionModal()}
-      {/* Trading Interface */}
       <View style={styles.tradingInterface}>
         {/* Header */}
         <View style={styles.header}>
@@ -437,30 +545,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
           </Text>
         </View>
         {/* Order Button or Login Button */}
-        {!account?.address ? (
-          <TouchableOpacity 
-            style={[styles.orderButton, styles.loginButton]} 
-            onPress={() => router.push('/loginpage')}
-          >
-            <Text style={styles.orderButtonText}>Connect Wallet</Text>
-          </TouchableOpacity>
-        ) : needsDeposit ? (
-          <TouchableOpacity 
-            style={[styles.orderButton, styles.establishConnectionButton]} 
-            onPress={handleEstablishConnection}
-          >
-            <Text style={styles.orderButtonText}>Establish Connection</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            style={[styles.orderButton, isBuy ? styles.buyButton : styles.sellButton]} 
-            onPress={placeOrder}
-          >
-            <Text style={styles.orderButtonText}>
-              {isBuy ? 'Buy / Long' : 'Sell / Short'}
-            </Text>
-          </TouchableOpacity>
-        )}
+        {renderOrderButton()}
 
         {/* Trade Status */}
         {tradeStatus && (
@@ -648,9 +733,7 @@ const styles = StyleSheet.create({
   sellButton: {
     backgroundColor: '#FF6B6B',
   },
-  establishConnectionButton: {
-    backgroundColor: '#2E2E3A',
-  },
+ 
   loginButton: {
     backgroundColor: '#2E2E3A',
   },

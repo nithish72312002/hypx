@@ -3,10 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { ethers } from "ethers";
 import { useActiveAccount } from "thirdweb/react";
 import axios from "axios";
-import { useAgentWalletContext } from "@/context/AgentWalletContext";
+import { useAgentWallet } from "@/hooks/useAgentWallet";
 
 const ApproveAgent: React.FC = () => {
-  const { wallet, loading, error } = useAgentWalletContext(); // Agent wallet from context
+  const { wallet, loading, error } = useAgentWallet(); // Agent wallet from context
   const [signStatus, setSignStatus] = useState("");
   const account = useActiveAccount();
   // Add 170 days in milliseconds

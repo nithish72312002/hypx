@@ -40,6 +40,7 @@ const SpotPage: React.FC = () => {
   );
   // We'll use sdkSymbol for display (header) and pass selectedSymbol to SDK components.
   const [price, setPrice] = useState("3400");
+  const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
 
   // States for spot tokens (for the bottom sheet)
   const [spotTokens, setSpotTokens] = useState<SpotTokenData[]>([]);
@@ -202,13 +203,16 @@ const SpotPage: React.FC = () => {
               // Pass the symbol (id) to SDK components
               symbol={selectedSymbol || "@1"} 
               onPriceSelect={(selectedPrice) => setPrice(selectedPrice.toString())}
+              tradeType={orderType}
             />
           </View>
           <View style={styles.tradingInterface}>
-            <SpotTradingInterface sdksymbol={sdkSymbol}
+            <SpotTradingInterface
+              sdksymbol={sdkSymbol}
               symbol={selectedSymbol || "@1"}
               price={price}
               setPrice={setPrice}
+              onOrderTypeChange={(type) => setOrderType(type)}
             />
           </View>
         </View>

@@ -15,6 +15,8 @@ import PagerView from 'react-native-pager-view';
 import WebSocketManager from "@/api/WebSocketManager";
 import { useRouter } from 'expo-router';
 import { useActiveAccount } from "thirdweb/react";
+import { useNavigation } from '@react-navigation/native';
+import FelixWebView from '../screens/FelixWebView';
 
 const { width } = Dimensions.get('window');
 
@@ -64,6 +66,7 @@ const HomeScreen = () => {
   const router = useRouter();
   const account = useActiveAccount();
   const address = account?.address;
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = React.useState(0);
   const pagerRef = React.useRef(null);
   const [tokens, setTokens] = useState([]);
@@ -208,6 +211,13 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
+      <TouchableOpacity 
+        style={styles.felixButton}
+        onPress={() => router.push("/felix")}
+      >
+        <Text style={styles.felixButtonText}>Open Felix</Text>
+      </TouchableOpacity>
+
       <View style={styles.tabsContainer}>
         <ScrollView 
           horizontal 
@@ -269,6 +279,10 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 8,
   },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
   searchContainer: {
     flex: 1,
     height: 40,
@@ -313,6 +327,18 @@ const styles = StyleSheet.create({
   addFundsText: {
     color: '#000',
     fontWeight: 'bold',
+  },
+  felixButton: {
+    backgroundColor: '#007AFF',
+    padding: 10,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  felixButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    textAlign: 'center',
   },
   tabsContainer: {
     borderBottomWidth: 1,

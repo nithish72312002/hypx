@@ -18,7 +18,6 @@ export const DepositButton: React.FC<DepositButtonProps> = ({ onPress }) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [amount, setAmount] = useState('');
   const account = useActiveAccount();
-  const { checkDepositStatus } = useAppInitializer();
   const address = account?.address;
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
@@ -166,8 +165,7 @@ export const DepositButton: React.FC<DepositButtonProps> = ({ onPress }) => {
         setTimeout(() => {
         setIsModalVisible(false);
         refetchBalance();
-          checkDepositStatus();
-        }, 3000);
+        }, 1000);
       } catch (error) {
         console.error('API Error:', error);
         showToast('Failed to submit transaction', 'loading');

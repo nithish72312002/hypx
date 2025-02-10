@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import axios from "axios";
 import { useActiveAccount } from "thirdweb/react";
-import { useAgentWalletContext } from "@/context/AgentWalletContext";
+import { useAgentWallet } from "@/hooks/useAgentWallet";
 
 export const useApproveAgent = () => {
-  const { wallet, loading: walletLoading } = useAgentWalletContext();
+  const { wallet, loading: walletLoading } = useAgentWallet();
   const account = useActiveAccount();
   const [error, setError] = useState(null);
 
@@ -75,11 +75,16 @@ export const useApproveAgent = () => {
       console.log("API Response:", response.data);
 
       if (response.data.status === "err") {
+        const error = new Error(response.data.response);
         console.error("Agent approval failed:", response.data.response);
+        throw error; // Make sure error is thrown
       }
+
+      return response.data;
     } catch (err) {
       console.error("Error approving agent wallet:", err);
       setError(err);
+      throw err; // Re-throw to propagate to caller
     }
   };
 

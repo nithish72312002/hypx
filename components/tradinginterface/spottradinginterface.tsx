@@ -4,6 +4,10 @@ import { useActiveAccount } from 'thirdweb/react';
 import WebSocketManager from '@/api/WebSocketManager';
 import { useHyperliquid } from '@/context/HyperliquidContext';
 import axios from 'axios';
+import { router } from 'expo-router';
+import { useApproveAgent } from '@/hooks/useApproveAgent';
+import { useAgentWallet } from '@/hooks/useAgentWallet';
+import { Modal } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -41,6 +45,111 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, 
   const userAddress = account?.address || '0x0000000000000000000000000000000000000000';
   const { sdk } = useHyperliquid();
   const fullSymbol = `${sdksymbol}-SPOT`;
+  const { wallet, loading: walletLoading, error: walletError, createWallet } = useAgentWallet();
+  const { approveAgent } = useApproveAgent();
+
+  const [approvalCompleted, setApprovalCompleted] = useState(false);
+  const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
+
+  const handleEstablishConnection = async () => {
+    if (walletLoading) {
+      console.log("Wallet is still loading...");
+      return;
+    }
+
+    try {
+      // If no wallet, create a new one
+      if (!wallet?.address) {
+        console.log("No wallet found, creating new wallet...");
+        const newWallet = await createWallet();
+        if (!newWallet) {
+          console.error("Failed to create wallet");
+          return;
+        }
+        console.log("New wallet created:", newWallet.address);
+      }
+
+      // Approve agent if we have a wallet
+      try {
+        console.log("Approving agent...");
+        const result = await approveAgent();
+        if (result) {
+          console.log("Agent approved successfully");
+          setApprovalCompleted(true);
+          setIsConnectionModalVisible(false);
+        }
+      } catch (error: any) {
+        console.error("Error during approval:", error.message);
+        setApprovalCompleted(false);
+        
+        if (error.message?.includes('Must deposit')) {
+          setIsConnectionModalVisible(true);
+        }
+        return; // Exit early on error
+      }
+    } catch (error) {
+      console.error('Error establishing connection:', error);
+      setApprovalCompleted(false);
+    }
+  };
+
+  const navigateToWallet = () => {
+    setIsConnectionModalVisible(false);
+    router.push('/wallet');
+  };
+
+  // Query user role when wallet changes
+  useEffect(() => {
+    const queryUserRole = async () => {
+      if (!wallet?.address || !account?.address) return;
+      
+      try {
+        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
+          type: "userRole",
+          user: wallet.address
+        });
+        
+        console.log("User role response:", response.data);
+        console.log("Account address:", account.address);
+        console.log("Response user:", response.data?.data?.user);
+        
+        // Set approval based on response
+        if (response.data?.response === "Missing") {
+          console.log("User role missing, setting approval to false");
+          setApprovalCompleted(false);
+        } else if (response.data?.data?.user?.toLowerCase() === account.address?.toLowerCase()) {
+          console.log("User role matches account, setting approval to true");
+          setApprovalCompleted(true);
+        } else {
+          console.log("User role doesn't match account, setting approval to false");
+          console.log("Response user:", response.data?.data?.user?.toLowerCase());
+          console.log("Account address:", account.address?.toLowerCase());
+          setApprovalCompleted(false);
+        }
+      } catch (error) {
+        console.error("Error querying user role:", error);
+        setApprovalCompleted(false);
+      }
+    };
+
+    queryUserRole();
+  }, [wallet?.address, account?.address]);
+
+  useEffect(() => {
+    console.log("Modal visibility changed:", isConnectionModalVisible);
+  }, [isConnectionModalVisible]);
+
+  // Monitor wallet and account status
+  useEffect(() => {
+    if (walletLoading || !wallet || !account?.address) {
+      console.log("Agent wallet is still loading or external wallet not connected.");
+      return;
+    }
+  }, [wallet, walletLoading, account?.address]);
+
+  useEffect(() => {
+    console.log("State updated - approvalCompleted:", approvalCompleted);
+  }, [approvalCompleted]);
 
   // Subscribe to active asset data and mid prices as before.
   useEffect(() => {
@@ -277,11 +386,77 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, 
     console.log(`Price accepted: ${value} (allowed decimals: ${allowedDecimals})`);
 };
 
-  
+const renderOrderButton = () => {
+  if (!account?.address) {
+    return (
+      <TouchableOpacity 
+        style={[styles.orderButton, styles.loginButton]} 
+        onPress={() => router.push('/loginpage')}
+      >
+        <Text style={styles.orderButtonText}>Connect Wallet</Text>
+      </TouchableOpacity>
+    );
+  }
+
+  if (!wallet?.address || !approvalCompleted) {
+    return (
+      <TouchableOpacity 
+        style={[styles.orderButton, styles.establishConnectionButton]} 
+        onPress={handleEstablishConnection}
+        disabled={walletLoading}
+      >
+        <Text style={styles.orderButtonText}>
+          {walletLoading ? 'Loading...' : 'Establish Connection'}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity 
+      style={[styles.orderButton, isBuy ? styles.buyButton : styles.sellButton]} 
+      onPress={placeOrder}
+    >
+      <Text style={styles.orderButtonText}>
+        {isBuy ? 'Buy/Long' : 'Sell/Short'} {symbol}
+      </Text>
+    </TouchableOpacity>
+  );
+};
   
 
   return (
     <View style={styles.container}>
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={isConnectionModalVisible}
+      onRequestClose={() => setIsConnectionModalVisible(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => setIsConnectionModalVisible(false)}
+          >
+            <Text style={styles.closeButtonText}>✕</Text>
+          </TouchableOpacity>
+
+          <Text style={styles.modalTitle}>Deposit Required</Text>
+          <Text style={styles.modalText}>
+            You need to make a deposit to establish connection with Hyperliquid.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.depositButton}
+            onPress={navigateToWallet}
+          >
+            <Text style={styles.depositButtonText}>Go to Wallet</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+    <View style={styles.tradingInterface}>
       {/* Toggle Buttons */}
       <View style={styles.toggleContainer}>
         <TouchableOpacity style={[styles.toggleButton, isBuy && styles.activeBuy]} onPress={() => setIsBuy(true)}>
@@ -369,11 +544,8 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, 
       </View>
 
       {/* Order Button */}
-      <TouchableOpacity style={[styles.orderButton, isBuy ? styles.buyButton : styles.sellButton]} onPress={placeOrder}>
-        <Text style={styles.orderButtonText}>
-          {isBuy ? 'Buy ' : 'Sell'}
-        </Text>
-      </TouchableOpacity>
+      
+      {renderOrderButton()}
 
       {/* Trade Status */}
       {tradeStatus && (
@@ -382,12 +554,19 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, 
         </Text>
       )}
     </View>
+    </View>
+
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     width: width * 0.48,
+    flex: 1,
+    backgroundColor: "#1E1E2F",
+    padding: 10,
+  },
+  tradingInterface: {
     flex: 1,
     backgroundColor: "#1E1E2F",
     padding: 10,
@@ -549,6 +728,78 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#FF6B6B',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    position: 'relative',
+  },
+  closeButton: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2E2E3A',
+    borderRadius: 16,
+    zIndex: 2,
+  },
+  closeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: 'bold',
+    lineHeight: 28,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    color: '#CCCCCC',
+    marginBottom: 24,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  depositButton: {
+    backgroundColor: '#00C076',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  depositButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  establishConnectionButton: {
+    backgroundColor: '#2E2E3A',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  establishConnectionText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  loginButton: {
+    backgroundColor: '#2E2E3A',
   },
 });
 

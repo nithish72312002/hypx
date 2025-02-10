@@ -36,6 +36,8 @@ const FuturesPage: React.FC = () => {
   );
   const fullSymbol = `${selectedSymbol}-PERP`;
   const [price, setPrice] = useState("3400");
+  const [selectedTab, setSelectedTab] = useState<'Limit' | 'Market'>('Limit');
+  const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
 
   const filteredTokens = useMemo(
     () =>
@@ -163,6 +165,7 @@ const FuturesPage: React.FC = () => {
               onPriceSelect={(selectedPrice) =>
                 setPrice(selectedPrice.toString())
               }
+              tradeType={orderType}
             />
           </View>
           <View style={styles.tradingInterface}>
@@ -170,6 +173,7 @@ const FuturesPage: React.FC = () => {
               symbol={selectedSymbol || "BTC"}
               price={price}
               setPrice={setPrice}
+              onOrderTypeChange={(type) => setOrderType(type)}
             />
           </View>
         </View>
@@ -219,7 +223,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 20, // extra bottom padding so content isn't cut off
+    paddingBottom: 20, // extra bottom padding so content isn’t cut off
   },
   loadingContainer: {
     flex: 1,
@@ -250,7 +254,7 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flexDirection: "row",
-    marginBottom: 16,
+    marginBottom: 2,
   },
   orderBook: {
     flex: 1,

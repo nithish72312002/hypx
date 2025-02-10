@@ -4,6 +4,7 @@ import { useActiveAccount } from 'thirdweb/react';
 import axios from 'axios';
 import { ethers } from 'ethers';
 import {Toast} from '@/components/Toast'; // Assuming Toast component is in a separate file
+import { useHyperliquid } from '@/context/HyperliquidContext';
 
 interface WithdrawButtonProps {
   onPress?: () => void;
@@ -14,17 +15,24 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
   const [amount, setAmount] = useState('');
   const [withdrawableBalance, setWithdrawableBalance] = useState('0');
   const account = useActiveAccount();
-  const [isDepositModalVisible, setIsDepositModalVisible] = useState(false);
-  const [isWithdrawModalVisible, setIsWithdrawModalVisible] = useState(false);
-
+  const { sdk } = useHyperliquid();
   const MIN_WITHDRAW = 2;
+
+
+
+
   useEffect(() => {
-    if (account?.address) {
+    if (selectedChain === 'hyperliquid') {
+      getSpotClearinghouseState();
+    }
+  }, [selectedChain]);
+
+  // Initial load for Arbitrum
+  useEffect(() => {
+    if (account?.address && sdk) {
       fetchWithdrawableBalance();
     }
-  }, [account?.address]);
-
- 
+  }, [account?.address, sdk]);
 
   const handleMax = () => {
     setAmount(withdrawableBalance);
@@ -46,29 +54,87 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
   };
 
   const fetchWithdrawableBalance = async () => {
-    if (!account?.address) return;
+    if (!sdk || !account?.address) return;
 
     try {
-      const response = await axios.post(
-        'https://api.hyperliquid-testnet.xyz/info',
-        {
-          type: "clearinghouseState",
-          user: account.address
-        },
-        {
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (response.data?.withdrawable) {
-        setWithdrawableBalance(response.data.withdrawable);
+      const state = await sdk.info.perpetuals.getClearinghouseState(account.address);
+      if (state?.withdrawable) {
+        setWithdrawableBalance(state.withdrawable.toString());
       }
     } catch (error) {
-      console.error('Error fetching withdrawable balance:', error);
+      console.error('Error getting clearinghouse state:', error);
     }
   };
+
+  const getSpotClearinghouseState = async () => {
+    if (!sdk || !account?.address) return;
+
+    try {
+      const result = await sdk.info.spot.getSpotClearinghouseState(account.address);
+      console.log('Spot clearinghouse state:', result);
+      
+      if (result?.balances?.length > 0) {
+        // Clean up spot suffix and calculate withdrawable balance
+        const processedBalances = result.balances.map(balance => ({
+          ...balance,
+          coin: balance.coin.replace('-SPOT', ''),
+          withdrawable: (parseFloat(balance.total) - parseFloat(balance.hold)).toString()
+        }));
+        
+        setBalances(processedBalances);
+        
+        // Find USDC balance or first available balance
+        const usdcBalance = processedBalances.find(b => b.coin === 'USDC');
+        
+        if (usdcBalance) {
+          setWithdrawableBalance(usdcBalance.withdrawable);
+        } else if (processedBalances.length > 0) {
+          setWithdrawableBalance(processedBalances[0].withdrawable);
+          setSelectedToken(processedBalances[0].coin);
+        }
+      } else {
+        setBalances([]);
+        setWithdrawableBalance('0');
+      }
+    } catch (error) {
+      console.error('Error getting spot metadata:', error);
+      setBalances([]);
+      setWithdrawableBalance('0');
+    }
+  };
+
+  const [balances, setBalances] = useState([]);
+  const [selectedToken, setSelectedToken] = useState('USDC');
+  const [isTokenDropdownOpen, setIsTokenDropdownOpen] = useState(false);
+  const [selectedChain, setSelectedChain] = useState('arbitrum');
+  const [isChainDropdownOpen, setIsChainDropdownOpen] = useState(false);
+
+  // Handle chain switching
+  useEffect(() => {
+    if (selectedChain === 'hyperliquid') {
+      getSpotClearinghouseState();
+    } else {
+      setBalances([]);
+      setSelectedToken('USDC');
+      fetchWithdrawableBalance();
+    }
+  }, [selectedChain]);
+
+  // Update withdrawable balance when token changes in Hyperliquid
+  useEffect(() => {
+    if (selectedChain === 'hyperliquid' && balances.length > 0) {
+      console.log('Updating selected token from balances:', {
+        selectedToken,
+        balances,
+        selectedBalance: balances.find(b => b.coin === selectedToken)
+      });
+      const selectedBalance = balances.find(b => b.coin === selectedToken);
+      if (selectedBalance) {
+        setWithdrawableBalance(selectedBalance.withdrawable);
+      }
+    }
+  }, [selectedToken, selectedChain, balances]);
+
   const generateNonce = () => Date.now();
 
   const [toastVisible, setToastVisible] = useState(false);
@@ -83,6 +149,21 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
 
   const hideToast = () => {
     setToastVisible(false);
+  };
+
+  const getTokenIdFromSpotMeta = async (tokenName: string) => {
+    try {
+      const spotMeta = await sdk.info.spot.getSpotMeta();
+      console.log('Looking for token:', `${tokenName}-SPOT`);
+      const token = spotMeta.tokens.find(t => t.name === `${tokenName}-SPOT`);
+      if (!token) {
+        throw new Error(`Token ${tokenName}-SPOT not found in spot metadata. Available tokens: ${spotMeta.tokens.map(t => t.name).join(', ')}`);
+      }
+      return token.tokenId;
+    } catch (error) {
+      console.error('Error getting token ID:', error);
+      throw error;
+    }
   };
 
   const withdraw3 = async () => {
@@ -171,6 +252,128 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
     }
   };
 
+  const spotwithdraw = async () => {
+    try {
+      console.log('Starting spot withdrawal with params:', {
+        address: account?.address,
+        amount,
+        selectedToken,
+        selectedChain,
+        balances
+      });
+
+      if (!account?.address) {
+        showToast('Please connect your wallet first', 'loading');
+        return;
+      }
+
+      if (!amount || amount === '0' || amount === '') {
+        showToast('Please enter an amount', 'loading');
+        return;
+      }
+
+      if (!selectedToken) {
+        showToast('Please select a token', 'loading');
+        return;
+      }
+
+      showToast('Transaction submitted', 'loading');
+
+      const currentTimestamp = Date.now();
+
+      try {
+        console.log('Getting token ID from spot metadata...');
+        const tokenId = await getTokenIdFromSpotMeta(selectedToken);
+        console.log('Retrieved token ID:', tokenId);
+
+        const domain = {
+          name: "HyperliquidSignTransaction",
+          version: "1",
+          chainId: 421614,
+          verifyingContract: "0x0000000000000000000000000000000000000000"
+        };
+        console.log('Domain:', domain);
+
+        const message = {
+          destination: "0x2222222222222222222222222222222222222222",
+          token: `${selectedToken}:${tokenId}`,
+          amount: amount,
+          time: currentTimestamp,
+          type: "spotSend",
+          signatureChainId: "0x66eee",
+          hyperliquidChain: "Testnet"
+        };
+        console.log('Constructed message:', message);
+
+        const types = {
+          EIP712Domain: [
+            { name: "name", type: "string" },
+            { name: "version", type: "string" },
+            { name: "chainId", type: "uint256" },
+            { name: "verifyingContract", type: "address" }
+          ],
+          "HyperliquidTransaction:SpotSend": [
+            { name: "hyperliquidChain", type: "string" },
+            { name: "destination", type: "string" },
+            { name: "token", type: "string" },
+            { name: "amount", type: "string" },
+            { name: "time", type: "uint64" }
+          ]
+        };
+        console.log('Types:', types);
+
+        console.log('Requesting signature with:', {
+          domain,
+          message,
+          primaryType: "HyperliquidTransaction:SpotSend",
+          types
+        });
+        const signature = await account.signTypedData({
+          domain,
+          message,
+          primaryType: "HyperliquidTransaction:SpotSend",
+          types,
+        });
+        console.log('Received signature:', signature);
+
+        const { v, r, s } = ethers.Signature.from(signature);
+        console.log('Parsed signature components:', { v, r, s });
+
+        const apiPayload = {
+          action: message,
+          nonce: currentTimestamp,
+          signature: { r, s, v },
+        };
+        console.log('API payload:', apiPayload);
+
+        const apiUrl = "https://api.hyperliquid-testnet.xyz/exchange";
+        console.log('Sending request to:', apiUrl);
+        const response = await axios.post(apiUrl, apiPayload, {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        console.log("Withdrawal Response:", response.data);
+
+        if (response.data?.status === 'ok') {
+          showToast('Transaction completed', 'success');
+          setTimeout(() => {
+            setIsModalVisible(false);
+            fetchWithdrawableBalance();
+          }, 3000);
+        } else {
+          throw new Error('Withdrawal failed: ' + JSON.stringify(response.data));
+        }
+      } catch (error) {
+        console.error("Withdrawal Error:", error);
+        showToast('Failed to process withdrawal', 'loading');
+      }
+    } catch (error) {
+      console.error("Withdrawal Error:", error);
+      showToast('Failed to process withdrawal', 'loading');
+    }
+  };  
 
   return (
     <>
@@ -217,18 +420,111 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
 
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Destination Chain</Text>
-                <TouchableOpacity style={styles.selector}>
-                  <Text style={styles.selectorText}>Arbitrum</Text>
-                  <Text style={styles.arrowIcon}>▼</Text>
-                </TouchableOpacity>
+                <View style={styles.chainDropdownContainer}>
+                  <TouchableOpacity 
+                    style={styles.selector}
+                    onPress={() => setIsChainDropdownOpen(!isChainDropdownOpen)}
+                  >
+                    <Text style={styles.selectorText}>
+                      {selectedChain === 'hyperliquid' ? 'Hyperliquid' : 'Arbitrum'}
+                    </Text>
+                    <Text style={styles.arrowIcon}>▼</Text>
+                  </TouchableOpacity>
+                  
+                  {isChainDropdownOpen && (
+                    <View style={styles.dropdownMenu}>
+                      <TouchableOpacity 
+                        style={[
+                          styles.dropdownItem,
+                          selectedChain === 'arbitrum' && styles.selectedDropdownItem
+                        ]}
+                        onPress={() => {
+                          setSelectedChain('arbitrum');
+                          setIsChainDropdownOpen(false);
+                        }}
+                      >
+                        <Text style={[
+                          styles.dropdownText,
+                          selectedChain === 'arbitrum' && styles.selectedDropdownText
+                        ]}>Arbitrum</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[
+                          styles.dropdownItem,
+                          selectedChain === 'hyperliquid' && styles.selectedDropdownItem
+                        ]}
+                        onPress={() => {
+                          setSelectedChain('hyperliquid');
+                          setIsChainDropdownOpen(false);
+                        }}
+                      >
+                        <Text style={[
+                          styles.dropdownText,
+                          selectedChain === 'hyperliquid' && styles.selectedDropdownText
+                        ]}>Hyperliquid</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
               </View>
 
-              <View style={styles.inputGroup}>
-                <TouchableOpacity style={styles.selector}>
-                  <Text style={styles.selectorText}>USDC</Text>
-                  <Text style={styles.arrowIcon}>▼</Text>
-                </TouchableOpacity>
-              </View>
+              {/* Token selector - only show for Hyperliquid */}
+              {selectedChain === 'hyperliquid' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Token</Text>
+                  <View style={styles.tokenDropdownContainer}>
+                    <TouchableOpacity 
+                      style={styles.selector}
+                      onPress={() => setIsTokenDropdownOpen(!isTokenDropdownOpen)}
+                    >
+                      <Text style={styles.selectorText}>{selectedToken}</Text>
+                      <Text style={styles.arrowIcon}>▼</Text>
+                    </TouchableOpacity>
+                    
+                    {isTokenDropdownOpen && (
+                      <View style={styles.dropdownMenu}>
+                        {balances.length > 0 ? balances.map((balance) => (
+                          <TouchableOpacity 
+                            key={balance.coin}
+                            style={[
+                              styles.dropdownItem,
+                              selectedToken === balance.coin && styles.selectedDropdownItem
+                            ]}
+                            onPress={() => {
+                              setSelectedToken(balance.coin);
+                              setIsTokenDropdownOpen(false);
+                            }}
+                          >
+                            <Text style={[
+                              styles.dropdownText,
+                              selectedToken === balance.coin && styles.selectedDropdownText
+                            ]}>
+                              {balance.coin} ({balance.withdrawable})
+                            </Text>
+                          </TouchableOpacity>
+                        )) : (
+                          <TouchableOpacity style={styles.dropdownItem}>
+                            <Text style={styles.dropdownText}>USDC (0)</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {/* Only show USDC for Arbitrum */}
+              {selectedChain === 'arbitrum' && (
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Token</Text>
+                  <View style={styles.tokenDropdownContainer}>
+                    <TouchableOpacity style={styles.selector}>
+                      <Text style={styles.selectorText}>USDC</Text>
+                      <Text style={styles.arrowIcon}>▼</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
               <View style={styles.inputGroup}>
                 <View style={styles.amountInputContainer}>
@@ -251,20 +547,27 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
                 </View>
                 <View style={styles.balanceContainer}>
                   <Text style={styles.balanceText}>
-                    Withdrawable Balance: {withdrawableBalance} USDC
+                    Withdrawable Balance: {selectedChain === 'hyperliquid' ? withdrawableBalance : withdrawableBalance} {selectedToken}
                   </Text>
                 </View>
               </View>
 
               <TouchableOpacity
-                style={[styles.modalButton, (!amount || parseFloat(amount) < MIN_WITHDRAW) && styles.modalButtonDisabled]}
-                onPress={withdraw3}
-                disabled={!amount || parseFloat(amount) < MIN_WITHDRAW}
+                style={[
+                  styles.modalButton, 
+                  ((!amount || amount === '0' || amount === '') || 
+                   (selectedChain === 'arbitrum' && parseFloat(amount) < MIN_WITHDRAW)) && 
+                  styles.modalButtonDisabled
+                ]}
+                onPress={selectedChain === 'hyperliquid' ? spotwithdraw : withdraw3}
+                disabled={(!amount || amount === '0' || amount === '') || 
+                         (selectedChain === 'arbitrum' && parseFloat(amount) < MIN_WITHDRAW)}
               >
                 <Text style={styles.modalButtonText}>
-                  {!amount || parseFloat(amount) < MIN_WITHDRAW 
-                    ? `Minimum Withdrawal ${MIN_WITHDRAW} USDC`
-                    : 'Withdraw'
+                  {(!amount || amount === '0' || amount === '') ? 'Enter amount' :
+                   (selectedChain === 'arbitrum' && parseFloat(amount) < MIN_WITHDRAW) 
+                     ? `Minimum Withdrawal ${MIN_WITHDRAW} USDC`
+                     : 'Withdraw'
                   }
                 </Text>
               </TouchableOpacity>
@@ -410,5 +713,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  dropdownContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  chainDropdownContainer: {
+    position: 'relative',
+    width: '100%',
+    zIndex: 2,
+  },
+  tokenDropdownContainer: {
+    position: 'relative',
+    width: '100%',
+    zIndex: 1,
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: '#333',
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  selectedDropdownItem: {
+    backgroundColor: '#333',
+  },
+  dropdownText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+  },
+  selectedDropdownText: {
+    color: '#0066FF',
   },
 });
