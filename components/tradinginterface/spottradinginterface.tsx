@@ -25,13 +25,22 @@ interface SpotState {
 
 interface TradingInterfaceProps {
   symbol: string;
-  price: string;
+  price?: string;
+  setPrice?: (price: string) => void;
+  orderType: 'Limit' | 'Market';
+  onOrderTypeChange: (type: 'Limit' | 'Market') => void;
   sdksymbol: string;
-  setPrice: (price: string) => void;
 }
 
-const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setPrice, sdksymbol }) => {  
-  const [orderType, setOrderType] = useState('Limit');
+const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({ 
+  symbol, 
+  price, 
+  setPrice,
+  orderType,
+  onOrderTypeChange,
+  sdksymbol
+}) => {  
+  const [marginType, setMarginType] = useState('Cross');
   const [isReduceOnly, setIsReduceOnly] = useState(false);
   const [spotState, setSpotState] = useState<SpotState>({ balances: [] });
   const [size, setSize] = useState('0.01');
@@ -479,7 +488,7 @@ const renderOrderButton = () => {
       <View style={styles.orderTypeContainer}>
         <TouchableOpacity
           style={[styles.orderTypeButton, styles.activeOrderType]}
-          onPress={() => setOrderType(orderType === 'Limit' ? 'Market' : 'Limit')}
+          onPress={() => onOrderTypeChange(orderType === 'Limit' ? 'Market' : 'Limit')}
         >
           <Text style={styles.orderTypeText}>{orderType}</Text>
         </TouchableOpacity>
@@ -561,15 +570,13 @@ const renderOrderButton = () => {
 
 const styles = StyleSheet.create({
   container: {
-    width: width * 0.48,
     flex: 1,
     backgroundColor: "#1E1E2F",
-    padding: 10,
+    padding: 2,
   },
   tradingInterface: {
     flex: 1,
     backgroundColor: "#1E1E2F",
-    padding: 10,
   },
   toggleContainer: {
     flexDirection: 'row',

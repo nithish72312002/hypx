@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,6 @@ import WebSocketManager from "@/api/WebSocketManager";
 import { useRouter } from 'expo-router';
 import { useActiveAccount } from "thirdweb/react";
 import { useNavigation } from '@react-navigation/native';
-import FelixWebView from '../screens/FelixWebView';
 
 const { width } = Dimensions.get('window');
 
@@ -71,11 +70,14 @@ const HomeScreen = () => {
   const pagerRef = React.useRef(null);
   const [tokens, setTokens] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const wsRef = useRef(null);
+
   const handleNavigatemarket = (route) => {
     router.push(route);
   };
+
   const handleNavigateToDetails = (symbol: string) => {
-    const encodedSymbol = encodeURIComponent(symbol); // Encode the symbol for safe routing
+    const encodedSymbol = encodeURIComponent(symbol);
     router.push(`/details/${encodedSymbol}`);
   };
 
@@ -87,47 +89,61 @@ const HomeScreen = () => {
     }
   };
 
-  const tabs = ['Favorites', 'Hot', 'Gainers', 'Losers', '24h Vol']; // Updated tabs
+  const tabs = ['Favorites', 'Hot', 'Gainers', 'Losers', '24h Vol'];
 
   useEffect(() => {
     const wsManager = WebSocketManager.getInstance();
+    let isMounted = true;
 
-    const listener = (data) => {
-      try {
-        const { meta, assetCtxs } = data;
-        if (!meta || !assetCtxs) return;
+    // Store the formatted tokens in ref to prevent unnecessary re-renders
+    if (!wsRef.current) {
+      const listener = (data) => {
+        if (!isMounted) return;
+        try {
+          const { meta, assetCtxs } = data;
+          if (!meta || !assetCtxs) return;
 
-        const formattedTokens = meta.universe.map((token, index) => {
-          const ctx = assetCtxs[index] || {};
-          const { markPx, prevDayPx, dayBaseVlm } = ctx; // Added volume
+          const formattedTokens = meta.universe.map((token, index) => {
+            const ctx = assetCtxs[index] || {};
+            const { markPx, prevDayPx, dayBaseVlm } = ctx;
 
-          const price = parseFloat(markPx) || 0;
-          const prevPrice = parseFloat(prevDayPx) || 0;
-          const change = prevPrice > 0 
-            ? ((price - prevPrice) / prevPrice) * 100 
-            : 0;
+            const price = parseFloat(markPx) || 0;
+            const prevPrice = parseFloat(prevDayPx) || 0;
+            const change = prevPrice > 0 
+              ? ((price - prevPrice) / prevPrice) * 100 
+              : 0;
             const volume = dayBaseVlm !== undefined ? parseFloat(dayBaseVlm) : 0;
             const usdvolume = volume * price;
-          return {
-            symbol: token.name?.split('/')[0] || 'Unknown',
-            price,
-            prevPrice,
-            change,
-            usdvolume,
-            volume, // Add volume to tokens
-          };
-        });
+            
+            return {
+              symbol: token.name?.split('/')[0] || 'Unknown',
+              price,
+              prevPrice,
+              change,
+              usdvolume,
+              volume,
+            };
+          });
 
-        setTokens(formattedTokens);
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Error processing data:", err);
-        setIsLoading(false);
-      }
-    };
+          wsRef.current = formattedTokens;
+          setTokens(formattedTokens);
+          setIsLoading(false);
+        } catch (err) {
+          console.error("Error processing data:", err);
+          setIsLoading(false);
+        }
+      };
 
-    wsManager.addListener("webData2", listener);
-    return () => wsManager.removeListener("webData2", listener);
+      wsManager.addListener("webData2", listener);
+      return () => {
+        isMounted = false;
+        wsManager.removeListener("webData2", listener);
+      };
+    } else {
+      // Use cached data if available
+      setTokens(wsRef.current);
+      setIsLoading(false);
+    }
   }, []);
 
   const getTabData = (index) => {
@@ -211,12 +227,7 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity 
-        style={styles.felixButton}
-        onPress={() => router.push("/felix")}
-      >
-        <Text style={styles.felixButtonText}>Open Felix</Text>
-      </TouchableOpacity>
+      
 
       <View style={styles.tabsContainer}>
         <ScrollView 

@@ -46,7 +46,7 @@ export default function RootLayout() {
 						<AppInitializer>
 							<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
 								<Stack screenOptions={{
-									headerShown: false,
+									headerShown: true,
 								}}>
 									<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 									<Stack.Screen name="felix" options={{ 
@@ -59,6 +59,13 @@ export default function RootLayout() {
 									<Stack.Screen name="loginpage" options={{ 
 										headerShown: true,
 										title: "",
+										headerBackVisible: true,
+										presentation: 'card',
+										animation: 'slide_from_right'
+									}} />
+									<Stack.Screen name="profile/index" options={{ 
+										headerShown: true,
+										title: "Profile",
 										headerBackVisible: true,
 										presentation: 'card',
 										animation: 'slide_from_right'

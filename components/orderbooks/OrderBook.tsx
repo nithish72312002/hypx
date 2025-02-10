@@ -200,13 +200,13 @@ const styles =  StyleSheet.create({
     midPriceContainer: {
       backgroundColor: "#2E2E3A",
       borderRadius: 5,
-      paddingVertical: 12,
-      marginVertical: 14,
+      paddingVertical: 8,
+      marginVertical: 4,
       alignItems: "center",
       width: "100%",
     },
     midPriceText: {
-      fontSize: 20,
+      fontSize: 26,
       fontWeight: "bold",
       color: "#4CAF50",
     },

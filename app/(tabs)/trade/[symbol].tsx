@@ -7,9 +7,9 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
   ScrollView,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import axios from "axios";
 import TradingInterface from "@/components/tradinginterface/tradinginterface";
 import { useLocalSearchParams } from "expo-router";
@@ -184,7 +184,7 @@ const SpotPage: React.FC = () => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Wrap all main content in a ScrollView */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header displays the sdkSymbol (token name) */}
@@ -202,8 +202,8 @@ const SpotPage: React.FC = () => {
             <SpotOrderBook
               // Pass the symbol (id) to SDK components
               symbol={selectedSymbol || "@1"} 
-              onPriceSelect={(selectedPrice) => setPrice(selectedPrice.toString())}
               tradeType={orderType}
+              onPriceSelect={(selectedPrice) => setPrice(selectedPrice.toString())}
             />
           </View>
           <View style={styles.tradingInterface}>
@@ -212,7 +212,8 @@ const SpotPage: React.FC = () => {
               symbol={selectedSymbol || "@1"}
               price={price}
               setPrice={setPrice}
-              onOrderTypeChange={(type) => setOrderType(type)}
+              orderType={orderType}
+              onOrderTypeChange={setOrderType}
             />
           </View>
         </View>
@@ -258,7 +259,7 @@ const SpotPage: React.FC = () => {
           </View>
         </BottomSheet>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

@@ -1,122 +1,105 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Dimensions, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, StatusBar } from 'react-native';
 import { TabView, SceneMap } from 'react-native-tab-view';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Create scene components
 import Spot from './Spot';
 import FuturesLayout from './Futures';
+import Overview from './Overview';
+import HyperEVM from './hyperevm';
 import { useActiveAccount } from 'thirdweb/react';
 import { useRouter } from 'expo-router';
 
-const renderScene = SceneMap({
-  Spot: Spot,
-  Futures: FuturesLayout,
-});
+const renderScene = ({ route }: { route: { key: string } }) => {
+  switch (route.key) {
+    case 'Overview':
+      return <Overview />;
+    case 'Spot':
+      return <Spot />;
+    case 'Futures':
+      return <FuturesLayout />;
+    case 'HyperEVM':
+      return <HyperEVM />;
+    default:
+      return null;
+  }
+};
 
 const WalletScreen = () => {
-  const [activeTab, setActiveTab] = useState<'Spot' | 'Futures'>('Spot');
+  const [activeTab, setActiveTab] = useState<'Overview' | 'Spot' | 'Futures' | 'HyperEVM'>('Overview');
   const [index, setIndex] = useState(0);
-  const  account  = useActiveAccount();
+  const account = useActiveAccount();
 
   const routes = [
+    { key: 'Overview', title: 'Overview' },
     { key: 'Spot', title: 'Spot' },
     { key: 'Futures', title: 'Futures' },
+    { key: 'HyperEVM', title: 'HyperEVM' },
   ];
 
   const handleIndexChange = (newIndex: number) => {
     setIndex(newIndex);
-    setActiveTab(routes[newIndex].key as 'Spot' | 'Futures');
+    setActiveTab(routes[newIndex].key as 'Overview' | 'Spot' | 'Futures' | 'HyperEVM');
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header Section */}
-        <View style={styles.tabContainer}>
-          {routes.map((route, i) => (
-            <TouchableOpacity
-              key={route.key}
-              style={[styles.tabButton, activeTab === route.key && styles.activeTab]}
-              onPress={() => {
-                setIndex(i);
-                setActiveTab(route.key as 'Spot' | 'Futures');
-              }}
-            >
-              <Text style={[styles.tabText, activeTab === route.key && styles.activeTabText]}>
-                {route.title}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+      <View style={styles.tabContainer}>
+        {routes.map((route, i) => (
+          <TouchableOpacity
+            key={route.key}
+            style={[styles.tabButton, activeTab === route.key && styles.activeTab]}
+            onPress={() => {
+              setIndex(i);
+              setActiveTab(route.key as 'Overview' | 'Spot' | 'Futures' | 'HyperEVM');
+            }}
+          >
+            <Text style={[styles.tabText, activeTab === route.key && styles.activeTabText]}>
+              {route.title}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
-        
-
-      {/* Swipeable Content Area */}
       <TabView
         navigationState={{ index, routes }}
         renderScene={renderScene}
         onIndexChange={handleIndexChange}
         initialLayout={{ width: Dimensions.get('window').width }}
-        swipeEnabled={true}
-        renderTabBar={() => null} // Hide default tab bar
-        style={styles.tabView}
+        renderTabBar={() => null}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
-
-
-
 const styles = StyleSheet.create({
-  scene: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  tabView: {
-    flex: 1,
-    marginHorizontal: 1,
-  },
   container: {
     flex: 1,
-    backgroundColor: '#F5F6FA',
-    padding: 16,
+    backgroundColor: '#fff',
   },
-  
   tabContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
-    height: 40, // Add fixed height
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   tabButton: {
-    width: '20%', // Use percentage width instead of flex:1
-    paddingVertical: 8, // Reduced from 12
-    borderRadius: 6, // Slightly smaller radius
-    backgroundColor: '#E0E0E0',
-    marginHorizontal: 4,
-    height: '90%', // Fixed height
-  },
-  tabText: {
-    textAlign: 'center',
-    color: '#666',
-    fontWeight: '500',
-    fontSize: 14, // Add explicit font size
+    paddingVertical: 12,
+    marginRight: 24,
   },
   activeTab: {
-    backgroundColor: '#AB47BC',
+    borderBottomWidth: 2,
+    borderBottomColor: '#F0B90B',
+  },
+  tabText: {
+    fontSize: 14,
+    color: '#666',
   },
   activeTabText: {
-    color: '#FFFFFF',
-  },
-  
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
-  contentText: {
-    fontSize: 16,
-    color: '#000',
-    textAlign: 'center',
-    marginTop: 20,
+    color: '#F0B90B',
+    fontWeight: '600',
   },
 });
 

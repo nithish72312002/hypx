@@ -7,9 +7,9 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  SafeAreaView,
   ScrollView,
 } from "react-native";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import TradingInterface from "@/components/tradinginterface/tradinginterface";
 import { useLocalSearchParams } from "expo-router";
 import OrderBook from "@/components/orderbooks/OrderBook";
@@ -36,7 +36,6 @@ const FuturesPage: React.FC = () => {
   );
   const fullSymbol = `${selectedSymbol}-PERP`;
   const [price, setPrice] = useState("3400");
-  const [selectedTab, setSelectedTab] = useState<'Limit' | 'Market'>('Limit');
   const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
 
   const filteredTokens = useMemo(
@@ -140,8 +139,7 @@ const FuturesPage: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Wrap all main content in a ScrollView */}
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
@@ -162,10 +160,10 @@ const FuturesPage: React.FC = () => {
           <View style={styles.orderBook}>
             <OrderBook
               symbol={selectedSymbol || "BTC"}
+              tradeType={orderType}
               onPriceSelect={(selectedPrice) =>
                 setPrice(selectedPrice.toString())
               }
-              tradeType={orderType}
             />
           </View>
           <View style={styles.tradingInterface}>
@@ -173,7 +171,8 @@ const FuturesPage: React.FC = () => {
               symbol={selectedSymbol || "BTC"}
               price={price}
               setPrice={setPrice}
-              onOrderTypeChange={(type) => setOrderType(type)}
+              orderType={orderType}
+              onOrderTypeChange={setOrderType}
             />
           </View>
         </View>
@@ -212,7 +211,7 @@ const FuturesPage: React.FC = () => {
           </View>
         </BottomSheet>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 

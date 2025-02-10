@@ -10,6 +10,8 @@ import {
 import WebSocketManager from "@/api/WebSocketManager";
 import { useActiveAccount } from "thirdweb/react";
 import WalletActionButtons from '@/components/buttons/WalletActionButtons';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 
 interface SpotTabProps {
   scrollEnabled?: boolean;
@@ -222,18 +224,25 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
   return (
     <ScrollView style={styles.wrapper}>
       <View style={styles.header}>
-        <Text style={styles.totalValue}>Est. Total Value</Text>
-        <Text style={styles.totalAmount}>${totalValue.toFixed(2)} USD</Text>
-        <Text style={styles.pnl}>
-          {totalPnl >= 0 ? "+" : "-"}${Math.abs(totalPnl).toFixed(2)} (
-          {totalValue !== 0
-            ? `${(totalPnl / totalValue) * 100 >= 0 ? "+" : "-"}${Math.abs((totalPnl / totalValue) * 100).toFixed(2)}`
-            : "0.00"
-          }%)
-        </Text>
-        <View style={styles.actionContainer}>
-          <WalletActionButtons />
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.totalValue}>Est. Total Value</Text>
+            <Text style={styles.totalAmount}>${totalValue.toFixed(2)} USD</Text>
+            <Text style={styles.pnl}>
+              {totalPnl >= 0 ? "+" : "-"}${Math.abs(totalPnl).toFixed(2)} (
+              {totalValue !== 0
+                ? `${(totalPnl / totalValue) * 100 >= 0 ? "+" : "-"}${Math.abs((totalPnl / totalValue) * 100).toFixed(2)}`
+                : "0.00"}%)
+            </Text>
+          </View>
+          <TouchableOpacity 
+            style={styles.historyButton}
+            onPress={() => router.push('/history')}
+          >
+            <Ionicons name="time-outline" size={24} color="#666" />
+          </TouchableOpacity>
         </View>
+        <WalletActionButtons />
       </View>
 
       <Text style={styles.sectionTitle}>Balances</Text>
@@ -353,6 +362,15 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     margin: 10,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  historyButton: {
+    padding: 8,
   },
   actionContainer: {
     marginTop: -8,  // Adjust the top margin to compensate for the button container's margin

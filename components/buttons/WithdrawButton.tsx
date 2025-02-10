@@ -18,8 +18,7 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
   const { sdk } = useHyperliquid();
   const MIN_WITHDRAW = 2;
 
-
-
+  const hyberliquiddisabled = true;
 
   useEffect(() => {
     if (selectedChain === 'hyperliquid') {
@@ -448,21 +447,23 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
                           selectedChain === 'arbitrum' && styles.selectedDropdownText
                         ]}>Arbitrum</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity 
-                        style={[
-                          styles.dropdownItem,
-                          selectedChain === 'hyperliquid' && styles.selectedDropdownItem
-                        ]}
-                        onPress={() => {
-                          setSelectedChain('hyperliquid');
-                          setIsChainDropdownOpen(false);
-                        }}
-                      >
-                        <Text style={[
-                          styles.dropdownText,
-                          selectedChain === 'hyperliquid' && styles.selectedDropdownText
-                        ]}>Hyperliquid</Text>
-                      </TouchableOpacity>
+                      {!hyberliquiddisabled && (
+                        <TouchableOpacity 
+                          style={[
+                            styles.dropdownItem,
+                            selectedChain === 'hyperliquid' && styles.selectedDropdownItem
+                          ]}
+                          onPress={() => {
+                            setSelectedChain('hyperliquid');
+                            setIsChainDropdownOpen(false);
+                          }}
+                        >
+                          <Text style={[
+                            styles.dropdownText,
+                            selectedChain === 'hyperliquid' && styles.selectedDropdownText
+                          ]}>Hyperliquid</Text>
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </View>

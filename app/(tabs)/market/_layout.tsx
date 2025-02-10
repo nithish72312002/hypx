@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Spot from "./spot";
 import Perps from "./perps";
 
@@ -28,7 +29,7 @@ const MarketLayout: React.FC = () => {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <TabView
         navigationState={{ index, routes }}
         renderScene={renderScene}
@@ -36,14 +37,13 @@ const MarketLayout: React.FC = () => {
         renderTabBar={renderTabBar}
         initialLayout={{ width: 360 }}
       />
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-
     backgroundColor: "#000",
   },
   tabBar: {

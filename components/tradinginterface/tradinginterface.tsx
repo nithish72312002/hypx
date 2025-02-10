@@ -25,13 +25,20 @@ interface WsActiveAssetData {
 
 interface TradingInterfaceProps {
   symbol: string;
-  price: string;
-  setPrice: (price: string) => void;
+  price?: string;
+  setPrice?: (price: string) => void;
+  orderType: 'Limit' | 'Market';
+  onOrderTypeChange: (type: 'Limit' | 'Market') => void;
 }
 
-const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setPrice }) => {  
+const TradingInterface: React.FC<TradingInterfaceProps> = ({ 
+  symbol, 
+  price, 
+  setPrice,
+  orderType,
+  onOrderTypeChange
+}) => {  
   const [marginType, setMarginType] = useState('Cross');
-  const [orderType, setOrderType] = useState('Limit');
   const [isReduceOnly, setIsReduceOnly] = useState(false);
   const [activeAssetData, setActiveAssetData] = useState<WsActiveAssetData | null>(null);
   const [size, setSize] = useState('0.01');
@@ -481,7 +488,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
         <View style={styles.orderTypeContainer}>
           <TouchableOpacity
             style={[styles.orderTypeButton, styles.activeOrderType]}
-            onPress={() => setOrderType(orderType === 'Limit' ? 'Market' : 'Limit')}
+            onPress={() => onOrderTypeChange(orderType === 'Limit' ? 'Market' : 'Limit')}
           >
             <Text style={styles.orderTypeText}>{orderType}</Text>
           </TouchableOpacity>
@@ -560,15 +567,12 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({ symbol, price, setP
 
 const styles = StyleSheet.create({
   container: {
-    width: width * 0.48,
     flex: 1,
     backgroundColor: "#1E1E2F",
-    padding: 10,
   },
   tradingInterface: {
     flex: 1,
     backgroundColor: "#1E1E2F",
-    padding: 10,
   },
   header: {
     flexDirection: 'row',
