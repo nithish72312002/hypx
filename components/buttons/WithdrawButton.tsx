@@ -18,7 +18,7 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
   const { sdk } = useHyperliquid();
   const MIN_WITHDRAW = 2;
 
-  const hyberliquiddisabled = true;
+  const hyberliquiddisabled = false;
 
   useEffect(() => {
     if (selectedChain === 'hyperliquid') {

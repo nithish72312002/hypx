@@ -17,7 +17,7 @@ export function useAppInitializer() {
 }
 
 export default function AppInitializer({ children }: { children?: React.ReactNode }) {
-  const  account  = useActiveAccount();
+  const account = useActiveAccount();
 
   useEffect(() => {
     if (account?.address) {

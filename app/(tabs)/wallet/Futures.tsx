@@ -9,9 +9,9 @@ import {
   Dimensions,
 } from "react-native";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
-import WebSocketManager from "@/api/WebSocketManager";
 import { useActiveAccount } from "thirdweb/react";
 import WalletActionButtons from '@/components/buttons/WalletActionButtons';
+import { useFuturesStore } from "@/store/useWalletStore";
 
 interface FuturesTabProps {
   scrollEnabled?: boolean;
@@ -32,122 +32,38 @@ const formatLiquidationPrice = (
 };
 
 const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
-  const manager = WebSocketManager.getInstance();
   const [activeInnerTab, setActiveInnerTab] = useState<"Assets" | "Positions">("Assets");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [accountValue, setAccountValue] = useState(0);
-  const [withdrawable, setWithdrawable] = useState(0);
-  const [positions, setPositions] = useState<any[]>([]);
-  const [assets, setAssets] = useState<any[]>([]);
-  const account = useActiveAccount();
   const [index, setIndex] = useState(0);
   const [routes] = useState([
     { key: 'assets', title: 'Assets' },
     { key: 'positions', title: 'Positions' },
   ]);
 
-  const [totalValue, setTotalValue] = useState(0);
-  const [totalPnl, setTotalPnl] = useState(0);
+  const account = useActiveAccount();
+  const { 
+    accountValue,
+    positions,
+    assets,
+    totalPnl,
+    isLoading,
+    error,
+    setAddress
+  } = useFuturesStore();
 
   useEffect(() => {
-    setTotalValue(accountValue);
-    const pnl = positions.reduce((sum, pos) => sum + pos.unrealizedPnl, 0);
-    setTotalPnl(pnl);
-  }, [accountValue, positions]);
+    setAddress(account?.address);
+  }, [account?.address, setAddress]);
 
   useEffect(() => {
-
-    if (!account?.address) {
-      // User is logged out, clear orders and positions.
-      setPositions([]);
-      setAssets([]);
-      return;
+    if (onUpdate) {
+      const pnlPercentage = accountValue > 0 ? (totalPnl / accountValue) * 100 : 0;
+      onUpdate(
+        accountValue,
+        `${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)} (${pnlPercentage.toFixed(2)}%)`
+      );
     }
-    const handleWebData2 = (data: any) => {
-      try {
-        const clearingState = data?.clearinghouseState;
-        if (!clearingState) return;
+  }, [onUpdate, accountValue, totalPnl]);
 
-        const marginSummary = clearingState.marginSummary || {};
-        const totalUnrealizedPnl =
-          clearingState.assetPositions?.reduce((acc: number, p: any) => {
-            return acc + parseFloat(p.position.unrealizedPnl || "0");
-          }, 0) || 0;
-
-        const newAccountValue = parseFloat(marginSummary.accountValue) || 0;
-        const newWithdrawable = parseFloat(clearingState.withdrawable) || 0;
-
-        setAccountValue(newAccountValue);
-        setWithdrawable(newWithdrawable);
-
-        // Single “asset” object for the Futures account
-        setAssets([
-          {
-            coin: "USDC",
-            walletBalance: newAccountValue.toFixed(2),
-            totalmarginused: (
-              parseFloat(marginSummary.totalMarginUsed) || 0
-            ).toFixed(2),
-            available: newWithdrawable.toFixed(2),
-            unrealizedPnl: totalUnrealizedPnl.toFixed(2),
-          },
-        ]);
-
-        // Build positions array
-        setPositions(
-          clearingState.assetPositions?.map((p: any) => {
-            const coin = p.position.coin;
-            const universeIndex =
-              data.meta?.universe?.findIndex((u: any) => u.name === coin) ?? -1;
-            const markPx =
-              universeIndex !== -1 && data.assetCtxs?.[universeIndex]?.markPx
-                ? parseFloat(data.assetCtxs[universeIndex].markPx)
-                : 0;
-
-            return {
-              coin,
-              size: parseFloat(p.position.szi),
-              entryPx: parseFloat(p.position.entryPx),
-              unrealizedPnl: parseFloat(p.position.unrealizedPnl),
-              liquidationPx: p.position.liquidationPx,
-              marginUsed: parseFloat(p.position.marginUsed),
-              returnOnEquity: parseFloat(p.position.returnOnEquity) * 100,
-              leverage: p.position.leverage, // { type, value }
-              markPx,
-            };
-          }) || []
-        );
-
-        setLoading(false);
-      } catch (err) {
-        console.error("Error processing webData2:", err);
-        setError("Error processing futures data.");
-      }
-    };
-
-    manager.addListener("webData2", handleWebData2);
-    return () => manager.removeListener("webData2", handleWebData2);
-  }, [ account?.address , manager]);
-
-  // Calculate total PNL and update parent
-  useEffect(() => {
-    if (!onUpdate) return;
-
-    const totalPnl = positions.reduce((sum, pos) => sum + pos.unrealizedPnl, 0);
-    const pnlPercentage = accountValue > 0 ? (totalPnl / accountValue) * 100 : 0;
-
-    onUpdate(
-      accountValue,
-      `${totalPnl >= 0 ? "+" : "-"}$${Math.abs(totalPnl).toFixed(2)} (${pnlPercentage.toFixed(2)}%)`
-    );
-  }, [accountValue, positions, onUpdate]);
-
-  // --- RENDERING FUNCTIONS ---
-
-  /**
-   * Assets rendering
-   */
   const renderAssetsItem = ({ item }: { item: any }) => {
     return (
       <View style={styles.assetContainer}>
@@ -192,12 +108,8 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
     );
   };
 
-  /**
-   * Positions rendering
-   */
   const renderPositionItem = ({ item }: { item: any }) => {
-    const marginRatio =
-      (parseFloat(item.marginUsed) / parseFloat(accountValue.toString())) * 100 || 0;
+    const marginRatio = (parseFloat(item.marginUsed) / accountValue) * 100 || 0;
 
     return (
       <View style={styles.assetContainer}>
@@ -298,8 +210,7 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
     positions: renderPositionsScene,
   });
 
-  // --- MAIN RETURN ---
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#AB47BC" />
@@ -320,11 +231,11 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.totalValue}>Est. Total Value</Text>
-        <Text style={styles.totalAmount}>${totalValue.toFixed(2)} USD</Text>
+        <Text style={styles.totalAmount}>${accountValue.toFixed(2)} USD</Text>
         <Text style={styles.pnl}>
           {totalPnl >= 0 ? "+" : "-"}${Math.abs(totalPnl).toFixed(2)} (
-          {totalValue !== 0
-            ? `${(totalPnl / totalValue) * 100 >= 0 ? "+" : "-"}${Math.abs((totalPnl / totalValue) * 100).toFixed(2)}`
+          {accountValue !== 0
+            ? `${(totalPnl / accountValue) * 100 >= 0 ? "+" : "-"}${Math.abs((totalPnl / accountValue) * 100).toFixed(2)}`
             : "0.00"
           }%)
         </Text>

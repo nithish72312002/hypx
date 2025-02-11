@@ -3,10 +3,11 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, Modal 
 import { useActiveAccount } from 'thirdweb/react';
 import WebSocketManager from '@/api/WebSocketManager';
 import { useHyperliquid } from '@/context/HyperliquidContext';
-import axios from 'axios';
 import { useApproveAgent } from '@/hooks/useApproveAgent';
 import { router } from 'expo-router';
 import { useAgentWallet } from '@/hooks/useAgentWallet';
+import { useApprovalStore } from '@/store/useApprovalStore';
+import axios from 'axios';
 
 const { width } = Dimensions.get('window');
 
@@ -54,8 +55,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const fullSymbol = `${symbol}-PERP`;
   const { wallet, loading: walletLoading, error: walletError, createWallet } = useAgentWallet();
   const { approveAgent } = useApproveAgent();
-
-  const [approvalCompleted, setApprovalCompleted] = useState(false);
+  const { approvalCompleted, setApprovalCompleted, queryUserRole } = useApprovalStore();
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
 
   const handleEstablishConnection = async () => {
@@ -105,42 +105,11 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
     router.push('/wallet');
   };
 
-  // Query user role when wallet changes
   useEffect(() => {
-    const queryUserRole = async () => {
-      if (!wallet?.address || !account?.address) return;
-      
-      try {
-        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
-          type: "userRole",
-          user: wallet.address
-        });
-        
-        console.log("User role response:", response.data);
-        console.log("Account address:", account.address);
-        console.log("Response user:", response.data?.data?.user);
-        
-        // Set approval based on response
-        if (response.data?.response === "Missing") {
-          console.log("User role missing, setting approval to false");
-          setApprovalCompleted(false);
-        } else if (response.data?.data?.user?.toLowerCase() === account.address?.toLowerCase()) {
-          console.log("User role matches account, setting approval to true");
-          setApprovalCompleted(true);
-        } else {
-          console.log("User role doesn't match account, setting approval to false");
-          console.log("Response user:", response.data?.data?.user?.toLowerCase());
-          console.log("Account address:", account.address?.toLowerCase());
-          setApprovalCompleted(false);
-        }
-      } catch (error) {
-        console.error("Error querying user role:", error);
-        setApprovalCompleted(false);
-      }
-    };
-
-    queryUserRole();
-  }, [wallet?.address, account?.address]);
+    if (wallet?.address && account?.address) {
+      queryUserRole(wallet.address, account.address);
+    }
+  }, [wallet?.address, account?.address, queryUserRole]);
 
   useEffect(() => {
     console.log("Modal visibility changed:", isConnectionModalVisible);

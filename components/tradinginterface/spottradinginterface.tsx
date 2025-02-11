@@ -3,11 +3,12 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions } from 
 import { useActiveAccount } from 'thirdweb/react';
 import WebSocketManager from '@/api/WebSocketManager';
 import { useHyperliquid } from '@/context/HyperliquidContext';
-import axios from 'axios';
 import { router } from 'expo-router';
 import { useApproveAgent } from '@/hooks/useApproveAgent';
 import { useAgentWallet } from '@/hooks/useAgentWallet';
+import { useApprovalStore } from '@/store/useApprovalStore';
 import { Modal } from 'react-native';
+import axios from 'axios';
 
 const { width } = Dimensions.get('window');
 
@@ -56,8 +57,7 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
   const fullSymbol = `${sdksymbol}-SPOT`;
   const { wallet, loading: walletLoading, error: walletError, createWallet } = useAgentWallet();
   const { approveAgent } = useApproveAgent();
-
-  const [approvalCompleted, setApprovalCompleted] = useState(false);
+  const { approvalCompleted, setApprovalCompleted, queryUserRole } = useApprovalStore();
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
 
   const handleEstablishConnection = async () => {
@@ -67,15 +67,10 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
     }
 
     try {
-      // If no wallet, create a new one
+      // Create wallet if we don't have one
       if (!wallet?.address) {
-        console.log("No wallet found, creating new wallet...");
-        const newWallet = await createWallet();
-        if (!newWallet) {
-          console.error("Failed to create wallet");
-          return;
-        }
-        console.log("New wallet created:", newWallet.address);
+        console.log("Creating wallet...");
+        await createWallet();
       }
 
       // Approve agent if we have a wallet
@@ -89,16 +84,11 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
         }
       } catch (error: any) {
         console.error("Error during approval:", error.message);
-        setApprovalCompleted(false);
-        
-        if (error.message?.includes('Must deposit')) {
-          setIsConnectionModalVisible(true);
-        }
-        return; // Exit early on error
+        setTradeStatus(error.message);
       }
-    } catch (error) {
-      console.error('Error establishing connection:', error);
-      setApprovalCompleted(false);
+    } catch (error: any) {
+      console.error("Error creating wallet:", error.message);
+      setTradeStatus(error.message);
     }
   };
 
@@ -107,42 +97,11 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
     router.push('/wallet');
   };
 
-  // Query user role when wallet changes
   useEffect(() => {
-    const queryUserRole = async () => {
-      if (!wallet?.address || !account?.address) return;
-      
-      try {
-        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
-          type: "userRole",
-          user: wallet.address
-        });
-        
-        console.log("User role response:", response.data);
-        console.log("Account address:", account.address);
-        console.log("Response user:", response.data?.data?.user);
-        
-        // Set approval based on response
-        if (response.data?.response === "Missing") {
-          console.log("User role missing, setting approval to false");
-          setApprovalCompleted(false);
-        } else if (response.data?.data?.user?.toLowerCase() === account.address?.toLowerCase()) {
-          console.log("User role matches account, setting approval to true");
-          setApprovalCompleted(true);
-        } else {
-          console.log("User role doesn't match account, setting approval to false");
-          console.log("Response user:", response.data?.data?.user?.toLowerCase());
-          console.log("Account address:", account.address?.toLowerCase());
-          setApprovalCompleted(false);
-        }
-      } catch (error) {
-        console.error("Error querying user role:", error);
-        setApprovalCompleted(false);
-      }
-    };
-
-    queryUserRole();
-  }, [wallet?.address, account?.address]);
+    if (wallet?.address && account?.address) {
+      queryUserRole(wallet.address, account.address);
+    }
+  }, [wallet?.address, account?.address, queryUserRole]);
 
   useEffect(() => {
     console.log("Modal visibility changed:", isConnectionModalVisible);
@@ -427,7 +386,7 @@ const renderOrderButton = () => {
       onPress={placeOrder}
     >
       <Text style={styles.orderButtonText}>
-        {isBuy ? 'Buy/Long' : 'Sell/Short'} {symbol}
+        {isBuy ? 'Buy' : 'Sell'} {sdksymbol}
       </Text>
     </TouchableOpacity>
   );
