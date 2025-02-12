@@ -266,15 +266,15 @@ const SpotPage: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 20, // extra bottom padding so content isn't cut off
+    paddingBottom: 20,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -305,18 +305,18 @@ const styles = StyleSheet.create({
   },
   orderBook: {
     flex: 1,
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
     borderRadius: 8,
     marginRight: 8,
   },
   tradingInterface: {
     flex: 1,
-    backgroundColor: "#2E2E3A",
+    backgroundColor: "#13141B",
     borderRadius: 8,
     marginLeft: 8,
   },
   searchInput: {
-    backgroundColor: "#333333",
+    backgroundColor: "#1E1F26",
     color: "#FFFFFF",
     borderRadius: 8,
     padding: 12,
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#333333",
+    borderBottomColor: "#1E1F26",
   },
   tokenColumn: {
     flex: 2,
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
   },
   tokenVolume: {
     fontSize: 12,
-    color: "#FFFFFF",
+    color: "#8E8E93",
   },
   priceColumn: {
     flex: 1,
@@ -358,14 +358,14 @@ const styles = StyleSheet.create({
   },
   tokenPrice: {
     fontSize: 14,
-    color: "#FFFFFF",
     fontWeight: "bold",
+    color: "#FFFFFF",
   },
   positiveChange: {
     fontSize: 14,
     fontWeight: "bold",
     color: "#FFFFFF",
-    backgroundColor: "#34C759",
+    backgroundColor: "#00C087",
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 4,
@@ -383,12 +383,12 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: "#FFFFFF",
+    color: "#8E8E93",
     textAlign: "center",
   },
   tabsContainer: {
     minHeight: 500,
-    backgroundColor: "#2E2E3A",
+    backgroundColor: "#13141B",
     borderRadius: 8,
     marginTop: 16,
   },

@@ -229,14 +229,22 @@ const SpotTradeOpenOrdersHoldings: React.FC<TradingInterfaceProps> = ({ symbol }
         {spotBalances.map((balance, index) => {
           // Use token mapping to display a more user-friendly name if available.
           const displayName = tokenMapping[balance.coin] || balance.coin;
+          const available = parseFloat(balance.total) - parseFloat(balance.hold);
           return (
             <View key={index} style={styles.holdingItem}>
-              <Text style={styles.holdingCoin}>{displayName}</Text>
-              <Text style={styles.holdingDetail}>Total: {balance.total}</Text>
-              <Text style={styles.holdingDetail}>Hold: {balance.hold}</Text>
+              <View style={styles.holdingLeft}>
+                <Text style={styles.holdingCoin}>{displayName}</Text>
+              </View>
+              <View style={styles.holdingRight}>
+                <Text style={styles.holdingTotal}>{parseFloat(balance.total).toFixed(8)}</Text>
+                <Text style={styles.holdingDetail}>Available: {available.toFixed(8)}</Text>
+              </View>
             </View>
           );
         })}
+        {spotBalances.length === 0 && (
+          <Text style={styles.statusText}>No holdings found.</Text>
+        )}
       </ScrollView>
     </View>
   );
@@ -267,23 +275,23 @@ const SpotTradeOpenOrdersHoldings: React.FC<TradingInterfaceProps> = ({ symbol }
 
 const styles = StyleSheet.create({
   tabView: { flex: 1 },
-  tabBar: { backgroundColor: "#1E1E2F" },
-  tabIndicator: { backgroundColor: "#00A3FF" },
-  tabLabel: { color: "#FFF", fontWeight: "bold" },
-  container: { flex: 1, backgroundColor: "#2E2E3A" },
+  tabBar: { backgroundColor: "#13141B" },
+  tabIndicator: { backgroundColor: "#F0B90B" },
+  tabLabel: { color: "#FFFFFF", fontWeight: "bold" },
+  container: { flex: 1, backgroundColor: "#13141B" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
   },
   filterRow: { flexDirection: "row", alignItems: "center" },
   checkbox: {
     width: 18,
     height: 18,
     borderWidth: 2,
-    borderColor: "#888",
+    borderColor: "#8E8E93",
     borderRadius: 4,
     justifyContent: "center",
     alignItems: "center",
@@ -291,36 +299,38 @@ const styles = StyleSheet.create({
   checkboxInner: {
     width: 12,
     height: 12,
-    backgroundColor: "#00A3FF",
+    backgroundColor: "#F0B90B",
   },
-  filterText: { color: "#FFF", marginLeft: 8 },
+  filterText: { color: "#8E8E93", marginLeft: 8 },
   cancelAllButton: { justifyContent: "center" },
-  cancelAllText: { color: "#FF3B30", fontSize: 14 },
+  cancelAllText: { color: "#8E8E93", fontSize: 14 },
   orderItem: {
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
     margin: 8,
     borderRadius: 4,
     padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1E1F26",
   },
   orderHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 8,
   },
-  orderCoin: { color: "#FFF", fontWeight: "bold" },
-  orderType: { color: "#FF3B30", fontSize: 12 },
-  orderDate: { color: "#888", fontSize: 12 },
-  cancelButton: { backgroundColor: "#333", padding: 4, borderRadius: 3 },
-  cancelButtonText: { color: "#FFF", fontSize: 12 },
+  orderCoin: { color: "#FFFFFF", fontWeight: "bold" },
+  orderType: { color: "#00C087", fontSize: 12 },
+  orderDate: { color: "#8E8E93", fontSize: 12 },
+  cancelButton: { backgroundColor: "#1E1F26", padding: 4, borderRadius: 3 },
+  cancelButtonText: { color: "#8E8E93", fontSize: 12 },
   progressBar: {
     height: 3,
-    backgroundColor: "#333",
+    backgroundColor: "#1E1F26",
     borderRadius: 2,
     marginVertical: 8,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#00A3FF",
+    backgroundColor: "#00C087",
     width: "0%",
     borderRadius: 2,
   },
@@ -329,17 +339,42 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginVertical: 8,
   },
-  filledText: { color: "#888", fontSize: 12 },
-  priceText: { color: "#FFF", fontSize: 12 },
-  statusText: { color: "#FFF", textAlign: "center", margin: 8 },
+  filledText: { color: "#8E8E93", fontSize: 12 },
+  priceText: { color: "#8E8E93", fontSize: 12 },
+  statusText: { color: "#FFFFFF", textAlign: "center", margin: 8 },
   holdingItem: {
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
     margin: 8,
     borderRadius: 4,
     padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#1E1F26",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
-  holdingCoin: { color: "#FFF", fontWeight: "bold", fontSize: 16 },
-  holdingDetail: { color: "#FFF", fontSize: 14 },
+  holdingLeft: {
+    flex: 1,
+  },
+  holdingRight: {
+    alignItems: 'flex-end',
+  },
+  holdingCoin: { 
+    color: "#FFFFFF", 
+    fontWeight: "bold", 
+    fontSize: 16 
+  },
+  holdingDetail: { 
+    color: "#8E8E93", 
+    fontSize: 14,
+    marginTop: 4,
+  },
+  holdingTotal: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
+    marginBottom: 4,
+  },
 });
 
 export default SpotTradeOpenOrdersHoldings;

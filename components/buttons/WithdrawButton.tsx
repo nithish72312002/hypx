@@ -360,7 +360,7 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
           setTimeout(() => {
             setIsModalVisible(false);
             fetchWithdrawableBalance();
-          }, 3000);
+          },5000);
         } else {
           throw new Error('Withdrawal failed: ' + JSON.stringify(response.data));
         }
