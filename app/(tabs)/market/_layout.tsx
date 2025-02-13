@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ScrollView, StyleSheet, View, Text } from "react-native";
+import { ScrollView, StyleSheet, View, Text, Pressable } from "react-native";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
@@ -27,19 +27,24 @@ const MarketLayout: React.FC = () => {
 
   const renderTabBar = (props: any) => (
     <View style={styles.tabBar}>
-      {props.navigationState.routes.map((route, i) => {
+      {props.navigationState.routes.map((route: any, i: number) => {
         const isFocused = props.navigationState.index === i;
         return (
-          <View
+          <Pressable
             key={route.key}
-            style={[styles.tabItem, isFocused && styles.activeTab]}
+            style={({ pressed }) => [
+              styles.tabItem,
+              isFocused && styles.activeTab,
+              pressed && styles.pressedTab
+            ]}
+            onPress={() => setIndex(i)}
           >
             <Text
               style={[styles.tabText, isFocused && styles.activeTabText]}
             >
               {route.title}
             </Text>
-          </View>
+          </Pressable>
         );
       })}
     </View>
@@ -91,6 +96,9 @@ const styles = StyleSheet.create({
   activeTab: {
     borderBottomWidth: 2,
     borderBottomColor: '#F7B84B',
+  },
+  pressedTab: {
+    opacity: 0.7,
   },
   scene: {
     flex: 1,

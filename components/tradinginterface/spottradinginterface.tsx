@@ -493,14 +493,7 @@ const renderOrderButton = () => {
       </View>
 
       {/* Options Row */}
-      <View style={styles.optionsContainer}>
-        <TouchableOpacity style={styles.optionButton} onPress={() => setIsReduceOnly(!isReduceOnly)}>
-          <View style={[styles.optionIndicator, isReduceOnly && styles.checkedIndicator]}>
-            {isReduceOnly && <Text style={styles.checkmark}>✓</Text>}
-          </View>
-          <Text style={styles.optionText}>Reduce Only</Text>
-        </TouchableOpacity>
-      </View>
+      
 
       {/* Max Row */}
       <View style={styles.row}>

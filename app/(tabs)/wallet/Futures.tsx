@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -54,15 +54,21 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
     setAddress(account?.address);
   }, [account?.address, setAddress]);
 
+  const onUpdateRef = useRef(onUpdate);
+  
   useEffect(() => {
-    if (onUpdate) {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
+  useEffect(() => {
+    if (onUpdateRef.current) {
       const pnlPercentage = accountValue > 0 ? (totalPnl / accountValue) * 100 : 0;
-      onUpdate(
+      onUpdateRef.current(
         accountValue,
         `${totalPnl >= 0 ? '+' : ''}${totalPnl.toFixed(2)} (${pnlPercentage.toFixed(2)}%)`
       );
     }
-  }, [onUpdate, accountValue, totalPnl]);
+  }, [accountValue, totalPnl]);
 
   const renderAssetsItem = ({ item }: { item: any }) => {
     return (
@@ -213,7 +219,7 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#AB47BC" />
+        <ActivityIndicator size="large" color="#16C784" />
         <Text style={styles.loadingText}>Loading futures data...</Text>
       </View>
     );
@@ -257,8 +263,8 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
             style={styles.tabBar}
             indicatorStyle={styles.tabIndicator}
             labelStyle={styles.tabLabel}
-            activeColor="#AB47BC"
-            inactiveColor="#666"
+            activeColor="#16C784"
+            inactiveColor="#808A9D"
           />
         )}
       />
@@ -271,10 +277,10 @@ export default FuturesTab;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#1A1C24",
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2A2D3A',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -282,25 +288,25 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     fontSize: 14,
-    color: "#666",
+    color: "#808A9D",
     marginBottom: 4,
   },
   totalAmount: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#000",
+    color: "#FFFFFF",
     marginBottom: 4,
   },
   pnl: {
     fontSize: 16,
-    color: "#00C076",
+    color: "#16C784",
     marginBottom: 16,
   },
   actionContainer: {
     marginTop: -8,  // Adjust the top margin to compensate for the button container's margin
   },
   tabBar: {
-    backgroundColor: '#fff',
+    backgroundColor: '#2A2D3A',
     elevation: 0,
     shadowOpacity: 0,
     marginBottom: 16,
@@ -308,7 +314,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   tabIndicator: {
-    backgroundColor: '#AB47BC',
+    backgroundColor: '#16C784',
     height: 3,
     borderRadius: 3,
   },
@@ -317,7 +323,7 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   assetContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: "#2A2D3A",
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -330,12 +336,12 @@ const styles = StyleSheet.create({
   assetName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
+    color: "#FFFFFF",
   },
   assetAmount: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
+    color: "#FFFFFF",
   },
   detailRow: {
     flexDirection: "row",
@@ -346,14 +352,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   detailLabel: {
-    color: "#666",
+    color: "#808A9D",
     fontSize: 12,
     marginBottom: 4,
   },
   detailValue: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#000",
+    color: "#FFFFFF",
   },
   positionHeader: {
     flexDirection: "row",
@@ -363,7 +369,7 @@ const styles = StyleSheet.create({
   },
   leverageText: {
     fontSize: 14,
-    color: "#666",
+    color: "#808A9D",
   },
   pnlRow: {
     flexDirection: "row",
@@ -382,10 +388,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   positive: {
-    color: "#00C076",
+    color: "#16C784",
   },
   negative: {
-    color: "#FF6838",
+    color: "#EA3943",
   },
   loadingContainer: {
     flex: 1,
@@ -394,7 +400,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 8,
-    color: "#666",
+    color: "#808A9D",
   },
   errorContainer: {
     flex: 1,
@@ -402,6 +408,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   errorText: {
-    color: "#FF6838",
+    color: "#EA3943",
   },
 });

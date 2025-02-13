@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from "react-native";
-import WebSocketManager from "@/api/WebSocketManager";
+import { usePerpStore } from "@/store/usePerpStore";
 import { useRouter } from "expo-router";
 
 interface PerpTokenData {
@@ -15,7 +15,8 @@ interface PerpTokenData {
   price: number;
   volume: number;
   change: number;
-  leverage: number; // Add leverage property
+  leverage: number;
+  usdvolume: number;
 }
 
 interface SortConfig {
@@ -24,13 +25,19 @@ interface SortConfig {
 }
 
 const PerpPage: React.FC = () => {
-  const [tokens, setTokens] = useState<PerpTokenData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { tokens, isLoading, subscribeToWebSocket } = usePerpStore();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
   const router = useRouter();
 
+  useEffect(() => {
+    const unsubscribe = subscribeToWebSocket();
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   const handleNavigateToDetails = (symbol: string) => {
-    const encodedSymbol = encodeURIComponent(symbol); // Encode the symbol for safe routing
+    const encodedSymbol = encodeURIComponent(symbol);
     router.push(`/details/${encodedSymbol}`);
   };
 
@@ -63,49 +70,9 @@ const PerpPage: React.FC = () => {
     return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
   };
 
-  useEffect(() => {
-    const wsManager = WebSocketManager.getInstance();
-
-    const listener = (data: any) => {
-      try {
-        const { meta, assetCtxs } = data;
-
-        // Process tokens and exclude those with volume = 0
-        const formattedTokens = meta.universe
-          .map((token: any, index: number) => {
-            const ctx = assetCtxs[index] || {};
-            const { markPx, dayBaseVlm, prevDayPx,  } = ctx;
-
-            const price = markPx !== undefined ? parseFloat(markPx) : 0;
-            const volume = dayBaseVlm !== undefined ? parseFloat(dayBaseVlm) : 0;
-            const prevPrice = prevDayPx !== undefined ? parseFloat(prevDayPx) : 0;
-            const change = prevPrice > 0 ? ((price - prevPrice) / prevPrice) * 100 : 0;
-
-            return {
-              name: token.name || "Unknown",
-              price,
-              volume,
-              change,
-              leverage: token.maxLeverage || 0, // Include maxLeverage from meta.universe
-
-            };
-          })
-          .filter((token: PerpTokenData) => token.volume > 0); // Exclude tokens with volume = 0
-
-        const sortedTokens = sortData(formattedTokens, sortConfig);
-        setTokens(sortedTokens);
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Error processing WebSocket data:", err);
-      }
-    };
-
-    wsManager.addListener("webData2", listener);
-
-    return () => {
-      wsManager.removeListener("webData2", listener);
-    };
-  }, [sortConfig]);
+  const sortedTokens = React.useMemo(() => {
+    return sortData(tokens, sortConfig);
+  }, [tokens, sortConfig]);
 
   const RenderToken = React.memo(
     ({ item, onPress }: { item: PerpTokenData; onPress: (name: string) => void }) => (
@@ -115,7 +82,7 @@ const PerpPage: React.FC = () => {
           <Text style={styles.tokenName}>
             {item.name}/USDC <Text style={styles.tokenLeverage}>x{item.leverage}</Text>
           </Text>            
-            <Text style={styles.tokenVolume}>{item.volume.toFixed(2)} Vol</Text>
+            <Text style={styles.tokenVolume}>{item.usdvolume.toFixed(2)} Vol</Text>
           </View>
           <View style={styles.priceColumn}>
             <Text style={styles.tokenPrice}>{item.price}</Text>
@@ -166,12 +133,12 @@ const PerpPage: React.FC = () => {
         </TouchableOpacity>
       </View>
       <FlatList
-        data={tokens}
+        data={sortedTokens}
         keyExtractor={(item) => item.name}
         renderItem={renderToken}
-        initialNumToRender={10} // Renders the first 10 items initially
+        initialNumToRender={10} 
         getItemLayout={(data, index) => ({
-          length: 60, // Estimated row height
+          length: 60, 
           offset: 60 * index,
           index,
         })}

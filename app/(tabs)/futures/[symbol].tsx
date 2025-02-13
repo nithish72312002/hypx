@@ -14,8 +14,8 @@ import TradingInterface from "@/components/tradinginterface/tradinginterface";
 import { useLocalSearchParams } from "expo-router";
 import OrderBook from "@/components/orderbooks/OrderBook";
 import BottomSheet, { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import WebSocketManager from "@/api/WebSocketManager";
 import OpenOrdersPositionsTabs from "@/components/openorders/OpenOrdersPositionsTabs";
+import { usePerpStore } from "@/store/usePerpStore";
 
 interface PerpTokenData {
   name: string;
@@ -23,12 +23,12 @@ interface PerpTokenData {
   volume: number;
   change: number;
   leverage: number;
+  usdvolume: number;
 }
 
 const FuturesPage: React.FC = () => {
   const { symbol } = useLocalSearchParams();
-  const [tokens, setTokens] = useState<PerpTokenData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { tokens, isLoading, subscribeToWebSocket } = usePerpStore();
   const [searchQuery, setSearchQuery] = useState("");
   const { symbol: initialSymbol } = useLocalSearchParams();
   const [selectedSymbol, setSelectedSymbol] = useState(
@@ -37,6 +37,13 @@ const FuturesPage: React.FC = () => {
   const fullSymbol = `${selectedSymbol}-PERP`;
   const [price, setPrice] = useState("3400");
   const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
+
+  useEffect(() => {
+    const unsubscribe = subscribeToWebSocket();
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const filteredTokens = useMemo(
     () =>
@@ -52,41 +59,6 @@ const FuturesPage: React.FC = () => {
   const handleSnapPress = () => sheetRef.current?.snapToIndex(0);
   const handleClosePress = () => sheetRef.current?.close();
 
-  useEffect(() => {
-    const wsManager = WebSocketManager.getInstance();
-    const listener = (data: any) => {
-      try {
-        const { meta, assetCtxs } = data;
-        const formattedTokens = meta.universe
-          .map((token: any, index: number) => {
-            const ctx = assetCtxs[index] || {};
-            const { markPx, dayBaseVlm, prevDayPx } = ctx;
-            const price = markPx !== undefined ? parseFloat(markPx) : 0;
-            const volume = dayBaseVlm !== undefined ? parseFloat(dayBaseVlm) : 0;
-            const prevPrice = prevDayPx !== undefined ? parseFloat(prevDayPx) : 0;
-            const change = prevPrice > 0 ? ((price - prevPrice) / prevPrice) * 100 : 0;
-            return {
-              name: token.name || "Unknown",
-              price,
-              volume,
-              change,
-              leverage: token.maxLeverage || 0,
-            };
-          })
-          .filter((token: PerpTokenData) => token.volume > 0);
-        setTokens(formattedTokens);
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Error processing WebSocket data:", err);
-      }
-    };
-
-    wsManager.addListener("webData2", listener);
-    return () => {
-      wsManager.removeListener("webData2", listener);
-    };
-  }, []);
-
   const RenderToken = React.memo(
     ({
       item,
@@ -99,17 +71,25 @@ const FuturesPage: React.FC = () => {
         <View style={styles.tokenRow}>
           <View style={styles.tokenColumn}>
             <Text style={styles.tokenName}>{item.name}/USDC</Text>
-            <Text style={styles.tokenVolume}>{item.volume.toFixed(2)} Vol</Text>
+            <Text style={styles.tokenVolume}>{item.usdvolume.toFixed(2)} Vol</Text>
           </View>
           <View style={styles.priceColumn}>
             <Text style={styles.tokenPrice}>{item.price}</Text>
           </View>
           <View style={styles.changeColumn}>
-            {item.change >= 0 ? (
-              <Text style={styles.positiveChange}>{item.change.toFixed(2)}%</Text>
-            ) : (
-              <Text style={styles.negativeChange}>{item.change.toFixed(2)}%</Text>
-            )}
+            <View
+              style={[
+                styles.changeBox,
+                item.change >= 0
+                  ? styles.positiveChangeBox
+                  : styles.negativeChangeBox,
+              ]}
+            >
+              <Text style={styles.changeText}>
+                {item.change >= 0 ? "+" : ""}
+                {item.change.toFixed(2)}%
+              </Text>
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -326,25 +306,21 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
   },
-  positiveChange: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-    backgroundColor: '#00C087',
-    paddingVertical: 4,
+  changeBox: {
     paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 4,
-    textAlign: 'center',
   },
-  negativeChange: {
+  positiveChangeBox: {
+    backgroundColor: '#00C087',
+  },
+  negativeChangeBox: {
+    backgroundColor: '#FF3B30',
+  },
+  changeText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
-    backgroundColor: '#FF3B30',
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
-    textAlign: 'center',
   },
   loadingText: {
     fontSize: 16,

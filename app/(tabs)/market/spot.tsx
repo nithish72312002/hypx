@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -7,17 +7,8 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from "react-native";
-import axios from "axios";
-import WebSocketManager from "@/api/WebSocketManager";
+import { useSpotStore } from "@/store/useSpotStore";
 import { useRouter } from "expo-router";
-
-interface SpotTokenData {
-  id: string;
-  name: string;
-  price: number;
-  volume: number;
-  change: number;
-}
 
 interface SortConfig {
   key: 'name' | 'price' | 'volume' | 'change';
@@ -25,70 +16,37 @@ interface SortConfig {
 }
 
 const SpotInfoPage: React.FC = () => {
-  const [tokens, setTokens] = useState<SpotTokenData[]>([]);
-  const [tokenMapping, setTokenMapping] = useState<{ [key: string]: string }>(
-    {}
-  );
-  const [isLoading, setIsLoading] = useState(true);
+  const { tokens, isLoading, subscribeToWebSocket, fetchTokenMapping, tokenMapping } = useSpotStore();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
   const router = useRouter();
+
+  useEffect(() => {
+    fetchTokenMapping();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToWebSocket();
+    return () => unsubscribe();
+  }, []);
 
   const handleNavigateToDetails = (id: string) => {
     const encodedId = encodeURIComponent(id);
     router.push(`/details/${encodedId}`);
   };
 
-  const parseTokenMapping = (apiResponse: any) => {
-    const mapping: { [key: string]: string } = {};
-    const tokensArray = apiResponse[0]?.tokens || [];
-    const universeArray = apiResponse[0]?.universe || [];
-
-    // Create a mapping from token index to token name
-    const tokenNameByIndex: { [key: number]: string } = {};
-    tokensArray.forEach((token: any) => {
-      tokenNameByIndex[token.index] = token.name;
-    });
-
-    // Use the first index in "tokens" array of universe to resolve names
-    universeArray.forEach((pair: any) => {
-      const [firstTokenIndex] = pair.tokens;
-      const resolvedName = tokenNameByIndex[firstTokenIndex] || "Unknown";
-      mapping[pair.name] = resolvedName;
-    });
-
-    return mapping;
-  };
-
-  useEffect(() => {
-    const fetchTokenMapping = async () => {
-      try {
-        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
-          type: "spotMetaAndAssetCtxs",
-        });
-
-        const mapping = parseTokenMapping(response.data);
-        setTokenMapping(mapping);
-      } catch (err) {
-        console.error("Error fetching token mapping:", err);
-      }
-    };
-
-    fetchTokenMapping();
-  }, []);
-
-  const sortData = (data: SpotTokenData[], config: SortConfig) => {
+  const sortData = (data: typeof tokens) => {
     return [...data].sort((a, b) => {
-      if (config.key === 'name') {
-        return config.direction === 'asc' 
+      if (sortConfig.key === 'name') {
+        return sortConfig.direction === 'asc' 
           ? a.name.localeCompare(b.name)
           : b.name.localeCompare(a.name);
       }
       
-      const aValue = a[config.key];
-      const bValue = b[config.key];
+      const aValue = a[sortConfig.key];
+      const bValue = b[sortConfig.key];
       
-      if (aValue < bValue) return config.direction === 'asc' ? -1 : 1;
-      if (aValue > bValue) return config.direction === 'asc' ? 1 : -1;
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
   };
@@ -105,84 +63,32 @@ const SpotInfoPage: React.FC = () => {
     return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
   };
 
-  useEffect(() => {
-    if (Object.keys(tokenMapping).length === 0) return;
+  const sortedTokens = useMemo(() => {
+    const mappedTokens = tokens.map(token => ({
+      ...token,
+      name: tokenMapping[token.id] || token.id
+    }));
+    return sortData(mappedTokens);
+  }, [tokens, tokenMapping, sortConfig]);
 
-    const wsManager = WebSocketManager.getInstance();
-
-    const listener = (data: any) => {
-      try {
-        const { spotAssetCtxs } = data;
-
-        if (!spotAssetCtxs || !Array.isArray(spotAssetCtxs)) {
-          console.error("Invalid spotAssetCtxs format in WebSocket data.");
-          return;
-        }
-
-        const formattedTokens = spotAssetCtxs
-          .filter((ctx: any) => ctx.dayBaseVlm > 0) // Exclude tokens with volume <= 0
-          .map((ctx: any) => {
-            const { coin, markPx, dayBaseVlm, prevDayPx } = ctx;
-
-            const id = coin;
-            const name = tokenMapping[coin] || coin;
-
-            const price = markPx !== undefined ? parseFloat(markPx) : 0;
-            const volume = dayBaseVlm !== undefined ? parseFloat(dayBaseVlm) : 0;
-            const prevPrice =
-              prevDayPx !== undefined ? parseFloat(prevDayPx) : 0;
-
-            const change =
-              prevPrice > 0 ? ((price - prevPrice) / prevPrice) * 100 : 0;
-
-            return {
-              id,
-              name,
-              price,
-              volume,
-              change,
-            };
-          });
-
-        const sortedTokens = sortData(formattedTokens, sortConfig);
-        setTokens(sortedTokens);
-        setIsLoading(false);
-      } catch (err) {
-        console.error("Error processing WebSocket data:", err);
-      }
-    };
-
-    wsManager.addListener("webData2", listener);
-
-    return () => {
-      wsManager.removeListener("webData2", listener);
-    };
-  }, [tokenMapping, sortConfig]);
-
-  const RenderToken = React.memo(
-    ({ item, onPress }: { item: SpotTokenData; onPress: (id: string) => void }) => (
-      <TouchableOpacity onPress={() => onPress(item.id)}>
-        <View style={styles.tokenRow}>
-          <View style={styles.nameColumn}>
-            <Text style={styles.tokenName}>{item.name}/USDC</Text>
-            <Text style={styles.tokenVolume}>{item.volume.toFixed(2)} Vol</Text>
-          </View>
-          <View style={styles.priceColumn}>
-            <Text style={styles.tokenPrice}>{item.price}</Text>
-          </View>
-          <View style={styles.changeColumn}>
-            <View style={[styles.changeBox, item.change >= 0 ? styles.positiveChangeBox : styles.negativeChangeBox]}>
-              <Text style={styles.changeText}>{item.change.toFixed(2)}%</Text>
-            </View>
+  const RenderToken = React.memo(({ item }: { item: typeof tokens[0] }) => (
+    <TouchableOpacity onPress={() => handleNavigateToDetails(item.id)}>
+      <View style={styles.tokenRow}>
+        <View style={styles.nameColumn}>
+          <Text style={styles.tokenName}>{item.name}/USDC</Text>
+          <Text style={styles.tokenVolume}>{item.volume.toFixed(2)} Vol</Text>
+        </View>
+        <View style={styles.priceColumn}>
+          <Text style={styles.tokenPrice}>{item.price}</Text>
+        </View>
+        <View style={styles.changeColumn}>
+          <View style={[styles.changeBox, item.change >= 0 ? styles.positiveChangeBox : styles.negativeChangeBox]}>
+            <Text style={styles.changeText}>{item.change.toFixed(2)}%</Text>
           </View>
         </View>
-      </TouchableOpacity>
-    )
-  );
-
-  const renderToken = ({ item }: { item: SpotTokenData }) => (
-    <RenderToken item={item} onPress={handleNavigateToDetails} />
-  );
+      </View>
+    </TouchableOpacity>
+  ));
 
   if (isLoading) {
     return (
@@ -203,22 +109,22 @@ const SpotInfoPage: React.FC = () => {
           <Text style={styles.headerText}>{`Name / Vol${getSortIcon('name')}`}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.priceColumn]}
+          style={[styles.priceColumn]} 
           onPress={() => handleSort('price')}
         >
           <Text style={styles.headerText}>{`Last Price${getSortIcon('price')}`}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.changeColumn]}
+          style={[styles.changeColumn]} 
           onPress={() => handleSort('change')}
         >
           <Text style={styles.headerText}>{`24h Chg%${getSortIcon('change')}`}</Text>
         </TouchableOpacity>
       </View>
       <FlatList
-        data={tokens}
+        data={sortedTokens}
+        renderItem={({ item }) => <RenderToken item={item} />}
         keyExtractor={(item) => item.id}
-        renderItem={renderToken}
         initialNumToRender={10}
         getItemLayout={(data, index) => ({
           length: 60,
@@ -229,6 +135,8 @@ const SpotInfoPage: React.FC = () => {
     </View>
   );
 };
+
+export default SpotInfoPage;
 
 const styles = StyleSheet.create({
   container: {
@@ -269,9 +177,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#2A2D3A",
-  },
-  tokenColumn: {
-    flex: 2,
   },
   tokenName: {
     fontSize: 15,
@@ -316,5 +221,3 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 });
-
-export default SpotInfoPage;

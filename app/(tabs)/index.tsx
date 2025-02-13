@@ -12,11 +12,11 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import PagerView from 'react-native-pager-view';
-import WebSocketManager from "@/api/WebSocketManager";
 import { useRouter } from 'expo-router';
 import { useActiveAccount } from "thirdweb/react";
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { usePerpStore } from '@/store/usePerpStore';
 
 const { width } = Dimensions.get('window');
 
@@ -69,9 +69,14 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = React.useState(0);
   const pagerRef = React.useRef(null);
-  const [tokens, setTokens] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const wsRef = useRef(null);
+  const { tokens, isLoading, subscribeToWebSocket } = usePerpStore();
+
+  useEffect(() => {
+    const unsubscribe = subscribeToWebSocket();
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const handleNavigatemarket = (route) => {
     router.push(route);
@@ -82,100 +87,43 @@ const HomeScreen = () => {
     router.push(`/details/${encodedSymbol}`);
   };
 
-  const handleProfilePress = () => {
-    if (!address) {
-      router.push("/loginpage");
-    } else {
-      router.push("/profile");
-    }
-  };
+
 
   const tabs = ['Favorites', 'Hot', 'Gainers', 'Losers', '24h Vol'];
 
-  useEffect(() => {
-    const wsManager = WebSocketManager.getInstance();
-    let isMounted = true;
-
-    // Store the formatted tokens in ref to prevent unnecessary re-renders
-    if (!wsRef.current) {
-      const listener = (data) => {
-        if (!isMounted) return;
-        try {
-          const { meta, assetCtxs } = data;
-          if (!meta || !assetCtxs) return;
-
-          const formattedTokens = meta.universe.map((token, index) => {
-            const ctx = assetCtxs[index] || {};
-            const { markPx, prevDayPx, dayBaseVlm } = ctx;
-
-            const price = parseFloat(markPx) || 0;
-            const prevPrice = parseFloat(prevDayPx) || 0;
-            const change = prevPrice > 0 
-              ? ((price - prevPrice) / prevPrice) * 100 
-              : 0;
-            const volume = dayBaseVlm !== undefined ? parseFloat(dayBaseVlm) : 0;
-            const usdvolume = volume * price;
-            
-            return {
-              symbol: token.name?.split('/')[0] || 'Unknown',
-              price,
-              prevPrice,
-              change,
-              usdvolume,
-              volume,
-            };
-          });
-
-          wsRef.current = formattedTokens;
-          setTokens(formattedTokens);
-          setIsLoading(false);
-        } catch (err) {
-          console.error("Error processing data:", err);
-          setIsLoading(false);
-        }
-      };
-
-      wsManager.addListener("webData2", listener);
-      return () => {
-        isMounted = false;
-        wsManager.removeListener("webData2", listener);
-      };
-    } else {
-      // Use cached data if available
-      setTokens(wsRef.current);
-      setIsLoading(false);
-    }
-  }, []);
-
   const getTabData = (index) => {
     const tab = tabs[index];
-    let processed = [...tokens];
+    const sortedTokens = [...tokens].map(token => ({
+      symbol: token.name?.split('/')[0] || 'Unknown',
+      price: token.price,
+      prevPrice: token.price / (1 + token.change / 100),
+      change: token.change,
+      usdvolume: token.usdvolume,
+      volume: token.volume,
+    }));
 
-    switch(tab) {
+    switch (tab) {
       case 'Favorites':
-        processed = processed.slice(0, 7);
-        break;
+        return sortedTokens.slice(0, 10);
       case 'Hot':
-        processed.sort((a, b) => b.price - a.price);
-        processed = processed.slice(0, 7);
-        break;
+        return sortedTokens
+          .sort((a, b) => b.usdvolume - a.usdvolume)
+          .slice(0, 10);
       case 'Gainers':
-        processed.sort((a, b) => b.change - a.change);
-        processed = processed.slice(0, 7);
-        break;
+        return sortedTokens
+          .sort((a, b) => b.change - a.change)
+          .slice(0, 10);
       case 'Losers':
-        processed.sort((a, b) => a.change - b.change);
-        processed = processed.slice(0, 7);
-        break;
+        return sortedTokens
+          .sort((a, b) => a.change - b.change)
+          .slice(0, 10);
       case '24h Vol':
-        processed.sort((a, b) => b.usdvolume - a.usdvolume);
-        processed = processed.slice(0, 7);
-        break;
+        return sortedTokens
+          .sort((a, b) => b.usdvolume - a.usdvolume)
+          .slice(0, 10);
       default:
-        processed = processed.slice(0, 7);
+        return sortedTokens.slice(0, 10);
     }
-
-    return processed;
   };
 
   const handleTabPress = (index) => {
