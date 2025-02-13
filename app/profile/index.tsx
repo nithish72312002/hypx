@@ -47,9 +47,7 @@ const ProfileScreen = () => {
           <View style={styles.avatarContainer}>
           <Blobbie address={account?.address} style={styles.avatar} />
           </View>
-          <TouchableOpacity style={styles.editButton}>
-            <Text style={styles.editButtonText}>✎</Text>
-          </TouchableOpacity>
+          
         </View>
         
         <View style={styles.infoSection}>
@@ -118,51 +116,7 @@ const ProfileScreen = () => {
         </View>
       </View>
 
-      <View style={styles.menuSection}>
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuItemLeft}>
-            <Text style={styles.menuIcon}>👑</Text>
-            <Text style={styles.menuText}>VIP Privilege</Text>
-          </View>
-          <View style={styles.menuItemRight}>
-            <Text style={styles.statusRegular}>Regular</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuItemLeft}>
-            <Text style={styles.menuIcon}>✓</Text>
-            <Text style={styles.menuText}>Verifications</Text>
-          </View>
-          <View style={styles.menuItemRight}>
-            <Text style={styles.statusVerified}>Verified</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem}>
-          <View style={styles.menuItemLeft}>
-            <Text style={styles.menuIcon}>🔒</Text>
-            <Text style={styles.menuText}>Security</Text>
-          </View>
-          <View style={styles.menuItemRight}>
-            <Text style={styles.menuArrow}>›</Text>
-          </View>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/link-profile')}>
-          <View style={styles.menuItemLeft}>
-            <Text style={styles.menuIcon}>🔗</Text>
-            <Text style={styles.menuText}>Link Account</Text>
-          </View>
-          <View style={styles.menuItemRight}>
-            <Text style={styles.statusUnlinked}>Unlinked</Text>
-            <Text style={styles.menuArrow}>›</Text>
-          </View>
-        </TouchableOpacity>
-        
-      </View>
+     
 
       <View style={styles.bottomButtons}>
         <TouchableOpacity style={styles.logoutButton} onPress={() => disconnect(wallet)}>

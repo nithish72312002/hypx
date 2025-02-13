@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity
 import axios from 'axios';
 import { useWalletStore } from '@/store/useWalletStore';
 import { useActiveAccount } from 'thirdweb/react';
+import { Stack } from 'expo-router';
 
 interface ValidatorStats {
   uptimeFraction: string;
@@ -36,8 +37,10 @@ export default function StakingScreen() {
   const [validators, setValidators] = useState<Validator[]>([]);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<Balance | null>(null);
-const account = useActiveAccount();
-const address = account?.address;
+  const [totalStake, setTotalStake] = useState(0);
+  const account = useActiveAccount();
+  const address = account?.address;
+
   useEffect(() => {
     fetchValidators();
     if (address) {
@@ -66,10 +69,18 @@ const address = account?.address;
       const response = await axios.post('https://api.hyperliquid-testnet.xyz/info', {
         type: 'validatorSummaries'
       });
-      // Filter only active validators and sort by stake
-      const activeValidators = response.data
+      
+      const allValidators = response.data;
+      
+      // Calculate total stake from all validators
+      const totalFromAll = allValidators.reduce((total, v) => total + v.stake, 0);
+      setTotalStake(totalFromAll);
+      
+      // Filter only active validators for display
+      const activeValidators = allValidators
         .filter((v: Validator) => v.isActive)
         .sort((a: Validator, b: Validator) => b.stake - a.stake);
+      
       setValidators(activeValidators);
       setLoading(false);
     } catch (error) {
@@ -99,7 +110,7 @@ const address = account?.address;
   };
 
   const getTotalStaked = () => {
-    return validators.reduce((sum, validator) => sum + validator.stake, 0) / 1e8;
+    return (totalStake / 1e8).toLocaleString(undefined, { maximumFractionDigits: 2 });
   };
 
   const getTopAPY = () => {
@@ -126,79 +137,93 @@ const address = account?.address;
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Summary Section */}
-      <View style={styles.summaryContainer}>
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceTitle}>Available Balance</Text>
-          <Text style={styles.balanceAmount}>{formatStake(getAvailableBalance())}</Text>
-          <TouchableOpacity style={styles.stakeButton}>
-            <Text style={styles.stakeButtonText}>Stake Now</Text>
-          </TouchableOpacity>
+    <>
+      <Stack.Screen 
+        options={{
+          title: "Staking",
+          headerStyle: {
+            backgroundColor: '#0C0D10',
+          },
+          headerTintColor: '#fff',
+          headerTitleStyle: {
+            fontWeight: '600',
+          },
+        }} 
+      />
+      <ScrollView style={styles.container}>
+        {/* Summary Section */}
+        <View style={styles.summaryContainer}>
+          <View style={styles.balanceCard}>
+            <Text style={styles.balanceTitle}>Available Balance</Text>
+            <Text style={styles.balanceAmount}>{formatStake(getAvailableBalance())}</Text>
+            <TouchableOpacity style={styles.stakeButton}>
+              <Text style={styles.stakeButtonText}>Stake Now</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={styles.description}>
+            Stake HYPE to trusted validators and earn rewards for securing the network.
+          </Text>
+          
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statTitle}>Top APY</Text>
+              <Text style={styles.statValue}>{getTopAPY()}</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statTitle}>Total Staked</Text>
+              <Text style={styles.statValue}>{getTotalStaked()} HYPE</Text>
+            </View>
+          </View>
         </View>
 
-        <Text style={styles.description}>
-          Stake HYPE to trusted validators and earn rewards for securing the network.
-        </Text>
-        
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statTitle}>Top APY</Text>
-            <Text style={styles.statValue}>{getTopAPY()}</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statTitle}>Total Staked</Text>
-            <Text style={styles.statValue}>{formatStake(getTotalStaked())}</Text>
-          </View>
+        {/* Validators List */}
+        <View style={styles.validatorsSection}>
+          <Text style={styles.title}>Active Validators</Text>
+          <Text style={styles.subtitle}>{validators.length} validators</Text>
+          {validators.map((validator) => (
+            <TouchableOpacity 
+              key={validator.validator}
+              style={styles.validatorCard}
+            >
+              <View style={styles.headerRow}>
+                <Text style={styles.validatorName}>{validator.name}</Text>
+                <View style={styles.aprBadge}>
+                  <Text style={styles.aprText}>
+                    APR: {formatAPR(validator.stats[0][1].predictedApr)}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.description} numberOfLines={2}>
+                {validator.description}
+              </Text>
+
+              <View style={styles.statsContainer}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Stake</Text>
+                  <Text style={styles.statValue}>{formatStake(validator.stake)}</Text>
+                </View>
+
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Commission</Text>
+                  <Text style={styles.percentValue}>
+                    {(parseFloat(validator.commission) * 100).toFixed(0)}%
+                  </Text>
+                </View>
+
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Uptime (24h)</Text>
+                  <Text style={styles.percentValue}>
+                    {formatUptime(validator.stats[0][1].uptimeFraction)}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
-      </View>
-
-      {/* Validators List */}
-      <View style={styles.validatorsSection}>
-        <Text style={styles.title}>Active Validators</Text>
-        <Text style={styles.subtitle}>{validators.length} validators</Text>
-        {validators.map((validator) => (
-          <TouchableOpacity 
-            key={validator.validator}
-            style={styles.validatorCard}
-          >
-            <View style={styles.headerRow}>
-              <Text style={styles.validatorName}>{validator.name}</Text>
-              <View style={styles.aprBadge}>
-                <Text style={styles.aprText}>
-                  APR: {formatAPR(validator.stats[0][1].predictedApr)}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.description} numberOfLines={2}>
-              {validator.description}
-            </Text>
-
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Stake</Text>
-                <Text style={styles.statValue}>{formatStake(validator.stake)}</Text>
-              </View>
-
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Commission</Text>
-                <Text style={styles.percentValue}>
-                  {(parseFloat(validator.commission) * 100).toFixed(0)}%
-                </Text>
-              </View>
-
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Uptime (24h)</Text>
-                <Text style={styles.percentValue}>
-                  {formatUptime(validator.stats[0][1].uptimeFraction)}
-                </Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </>
   );
 }
 

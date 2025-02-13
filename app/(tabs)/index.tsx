@@ -189,7 +189,7 @@ const HomeScreen = () => {
 
         <TouchableOpacity 
           style={styles.actionButton} 
-          onPress={() => router.push('/screen/vaults')}
+          onPress={() => router.push('/')}
         >
           <View style={styles.iconContainer}>
             <Ionicons name="lock-closed-outline" size={24} color="#666" />
@@ -199,7 +199,7 @@ const HomeScreen = () => {
 
         <TouchableOpacity 
           style={styles.actionButton} 
-          onPress={() => router.push('/screen/lending')}
+          onPress={() => router.push('/')}
         >
           <View style={styles.iconContainer}>
             <Ionicons name="cash-outline" size={24} color="#666" />
@@ -209,7 +209,7 @@ const HomeScreen = () => {
 
         <TouchableOpacity 
           style={styles.actionButton} 
-          onPress={() => router.push('/screen/defi')}
+          onPress={() => router.push('/')}
         >
           <View style={styles.iconContainer}>
             <Ionicons name="apps-outline" size={24} color="#666" />

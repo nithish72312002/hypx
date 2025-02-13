@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, StatusBar } from 'react-native';
 import { Stack } from 'expo-router';
 import History from '@/components/history/History';
 
 export default function HistoryPage() {
   return (
     <View style={styles.container}>
+
       <Stack.Screen
         options={{
           title: 'History',

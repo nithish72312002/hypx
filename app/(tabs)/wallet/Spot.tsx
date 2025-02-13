@@ -134,7 +134,11 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
           </View>
           <TouchableOpacity 
             style={styles.historyButton}
-            onPress={() => router.push('/history')}
+            onPress={() =>router.push({
+              pathname: '/history',
+              params: { initialTab: 'deposits' }
+            })
+            }
           >
             <Ionicons name="time-outline" size={24} color="#808A9D" />
           </TouchableOpacity>

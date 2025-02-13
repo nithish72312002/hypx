@@ -93,45 +93,41 @@ export default TradesList;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121212",
-    padding: 10,
+    backgroundColor: "#1A1C24",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
   },
   listContainer: {
-    paddingVertical: 10,
-    // Remove any scrollable behavior by not using a ScrollView or FlatList.
+    flex: 1,
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
+    paddingVertical: 4,
+    paddingHorizontal: 16,
+    height: 24,
   },
   cell: {
     flex: 1,
-    textAlign: "center", // Center text in each column
+    textAlign: "left",
   },
   text: {
-    color: "#FFFFFF",
-    fontSize: 14,
+    color: "#808A9D",
+    fontSize: 13,
+    fontFamily: 'monospace',
   },
   buyText: {
-    color: "#4CAF50", // Green for buy
+    color: "#16C784",
   },
   sellText: {
-    color: "#FF4D4D", // Red for sell
+    color: "#EA3943",
   },
   headerText: {
-    fontWeight: "bold",
-    fontSize: 16,
-    color: "#FFD700",
-    textAlign: "center", // Center header text
+    color: "#808A9D",
+    fontSize: 13,
   },
 });

@@ -1,37 +1,56 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Modal, TextInput, Alert } from 'react-native';
 import { useActiveAccount } from 'thirdweb/react';
 import axios from 'axios';
 import { ethers } from 'ethers';
-import {Toast} from '@/components/Toast'; // Assuming Toast component is in a separate file
+import {Toast} from '@/components/Toast';
 import { useHyperliquid } from '@/context/HyperliquidContext';
+import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from 'expo-router';
 
 interface WithdrawButtonProps {
   onPress?: () => void;
 }
 
 export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [amount, setAmount] = useState('');
   const [withdrawableBalance, setWithdrawableBalance] = useState('0');
   const account = useActiveAccount();
   const { sdk } = useHyperliquid();
   const MIN_WITHDRAW = 2;
+  const router = useRouter();
 
   const hyberliquiddisabled = false;
 
-  useEffect(() => {
-    if (selectedChain === 'hyperliquid') {
-      getSpotClearinghouseState();
-    }
-  }, [selectedChain]);
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        opacity={0.5}
+      />
+    ),
+    []
+  );
 
-  // Initial load for Arbitrum
-  useEffect(() => {
-    if (account?.address && sdk) {
-      fetchWithdrawableBalance();
-    }
-  }, [account?.address, sdk]);
+  const handlePress = () => {
+    bottomSheetModalRef.current?.present();
+  };
+
+  const handleOnChainWithdraw = () => {
+    bottomSheetModalRef.current?.dismiss();
+    setAmount('');
+    setIsModalVisible(true);
+  };
+
+  const handleTransferToL1 = () => {
+    bottomSheetModalRef.current?.dismiss();
+    router.push('/l1transfer');
+  };
 
   const handleMax = () => {
     setAmount(withdrawableBalance);
@@ -40,15 +59,6 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
   const handleAmountChange = (text: string) => {
     if (/^\d*\.?\d*$/.test(text)) {
       setAmount(text);
-    }
-  };
-
-  const handlePress = () => {
-    if (onPress) {
-      onPress();
-    } else {
-      setAmount('');
-      setIsModalVisible(true);
     }
   };
 
@@ -376,21 +386,56 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
 
   return (
     <>
-      <TouchableOpacity 
-        style={[styles.button, styles.withdrawButton]} 
+      <TouchableOpacity
+        style={[styles.button, styles.withdrawButton]}
         onPress={handlePress}
+        disabled={hyberliquiddisabled}
       >
         <Text style={styles.buttonText}>Withdraw</Text>
       </TouchableOpacity>
 
+      <BottomSheetModal
+        ref={bottomSheetModalRef}
+        snapPoints={['35%']}
+        backdropComponent={renderBackdrop}
+        enablePanDownToClose
+        backgroundStyle={{ backgroundColor: "#1E2026" }}
+        handleIndicatorStyle={{ backgroundColor: "#808A9D", width: 32 }}
+      >
+        <BottomSheetView style={styles.bottomSheetContent}>
+          <TouchableOpacity
+            style={styles.optionButton}
+            onPress={handleOnChainWithdraw}
+          >
+            <View style={styles.optionIconContainer}>
+              <Ionicons name="arrow-up-outline" size={20} color="#FFFFFF" />
+            </View>
+            <View style={styles.optionTextContainer}>
+              <Text style={styles.optionButtonText}>On-Chain Withdraw</Text>
+              <Text style={styles.optionDescription}>Withdraw crypto to your wallet</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.optionButton}
+            onPress={handleTransferToL1}
+          >
+            <View style={styles.optionIconContainer}>
+              <Ionicons name="swap-vertical" size={20} color="#FFFFFF" />
+            </View>
+            <View style={styles.optionTextContainer}>
+              <Text style={styles.optionButtonText}>Transfer on hyperliquid L1</Text>
+              <Text style={styles.optionDescription}>Transfer to another account on L1</Text>
+            </View>
+          </TouchableOpacity>
+        </BottomSheetView>
+      </BottomSheetModal>
+
       <Modal
-        animationType="slide"
-        transparent={true}
         visible={isModalVisible}
-        onRequestClose={() => {
-          setIsModalVisible(false);
-          setAmount('');
-        }}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsModalVisible(false)}
       >
         <TouchableOpacity 
           style={styles.modalContainer} 
@@ -573,15 +618,15 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
                 </Text>
               </TouchableOpacity>
             </TouchableOpacity>
-            {toastVisible && (
-              <Toast 
-                visible={toastVisible}
-                message={toastMessage}
-                type={toastType}
-                onHide={hideToast}
-              />
-            )}
           </View>
+          {toastVisible && (
+            <Toast 
+              visible={toastVisible}
+              message={toastMessage}
+              type={toastType}
+              onHide={hideToast}
+            />
+          )}
         </TouchableOpacity>
       </Modal>
     </>
@@ -598,7 +643,6 @@ const styles = StyleSheet.create({
   },
   withdrawButton: {
     backgroundColor: '#1E2026',
-
   },
   buttonText: {
     color: '#FFFFFF',
@@ -752,5 +796,39 @@ const styles = StyleSheet.create({
   },
   selectedDropdownText: {
     color: '#0066FF',
+  },
+  bottomSheetContent: {
+    flex: 1,
+    padding: 20,
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 12,
+    backgroundColor: '#2B2F36',
+  },
+  optionIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#363B44',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  optionTextContainer: {
+    flex: 1,
+  },
+  optionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  optionDescription: {
+    color: '#808A9D',
+    fontSize: 13,
   },
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { View, StyleSheet, Dimensions } from "react-native";
+import { View, StyleSheet, Dimensions, Text, Pressable, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import TradingViewChart from "@/components/TradingViewChart";
@@ -49,44 +49,51 @@ const DetailsPage: React.FC = () => {
     }
   }, []);
 
-  
-
   return (
-    <View style={styles.container}>
-      {/* Overview Section */}
-      <View style={styles.section}>
-        {isSpot ? (
-          <SpotAssetOverview symbol={symbol?.toString() || ""} />
-        ) : (
-          <PerpAssetOverview symbol={symbol?.toString() || ""} />
-        )}
-      </View>
+    <ScrollView style={styles.container}>
+      {isSpot ? (
+        <SpotAssetOverview symbol={symbol?.toString() || ""} />
+      ) : (
+        <PerpAssetOverview symbol={symbol?.toString() || ""} />
+      )}
 
-      {/* Chart Section */}
       <View style={styles.chartSection}>
         <TradingViewChart symbol={symbol?.toString() || "BTC"} />
       </View>
 
-      {/* Tabs Section with Fixed Height */}
-      <View style={styles.tabSection}>
-        <TabView
-          navigationState={{ index, routes }}
-          renderScene={renderScene}
-          onIndexChange={setIndex}
-          initialLayout={{ width: Dimensions.get("window").width }}
-          renderTabBar={(props) => (
-            <TabBar
-              {...props}
-              indicatorStyle={{ backgroundColor: "white" }}
-              style={{ backgroundColor: "black" }}
-              labelStyle={{ color: "white" }}
-            />
-          )}
-          removeClippedSubviews={false}
-          lazy={false}
-        />
-      </View>
-    </View>
+      <TabView
+        style={styles.tabView}
+        navigationState={{ index, routes }}
+        renderScene={renderScene}
+        onIndexChange={setIndex}
+        initialLayout={{ width: Dimensions.get("window").width }}
+        renderTabBar={props => (
+          <TabBar
+            {...props}
+            style={styles.tabBar}
+            indicatorStyle={styles.indicator}
+            pressColor="transparent"
+            renderTabBarItem={({ route, navigationState, onPress }) => {
+              const isActive = navigationState.index === routes.indexOf(route);
+              return (
+                <Pressable 
+                  style={styles.tabWrapper}
+                  onPress={onPress}
+                >
+                  <View style={[styles.tab, isActive && styles.activeTab]}>
+                    <Text style={[styles.tabLabel, isActive ? styles.activeText : styles.inactiveText]}>
+                      {route.title}
+                    </Text>
+                  </View>
+                </Pressable>
+              );
+            }}
+          />
+        )}
+        removeClippedSubviews={false}
+        lazy={false}
+      />
+    </ScrollView>
   );
 };
 
@@ -94,17 +101,48 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
-
-  },
-  section: {
-    padding: 1,
   },
   chartSection: {
     height: 380,
   },
-  tabSection: {
-    flex: 1,
-    minHeight: 400,
+  tabView: {
+    minHeight: 600,
+  },
+  tabBar: {
+    backgroundColor: '#171B26',
+    height: 36,
+    elevation: 0,
+    shadowOpacity: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1F2937',
+    paddingLeft: 16,
+  },
+  tabWrapper: {
+    height: 36,
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  tab: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  activeTab: {
+    backgroundColor: '#1F2937',
+  },
+  tabLabel: {
+    fontSize: 13,
+    fontWeight: '400',
+    textTransform: 'none',
+  },
+  activeText: {
+    color: '#FFFFFF',
+  },
+  inactiveText: {
+    color: '#808A9D',
+  },
+  indicator: {
+    height: 0,
   },
 });
 

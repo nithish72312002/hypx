@@ -16,6 +16,7 @@ import { inAppWallet } from "thirdweb/wallets";
 import AppInitializer from "@/components/AppInitializer";
 import { HyperliquidProvider } from "@/context/HyperliquidContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { StatusBar } from "react-native";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -46,6 +47,13 @@ export default function RootLayout() {
 							<ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
 								<Stack screenOptions={{
 									headerShown: true,
+									headerStyle: {
+										backgroundColor: '#1A1C24',
+									},
+									headerTintColor: '#fff',
+									statusBarStyle: 'light',
+									statusBarColor: '#1A1C24',
+									statusBarTranslucent: true,
 								}}>
 									<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 								

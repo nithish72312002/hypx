@@ -20,6 +20,7 @@ interface LedgerUpdate {
 const WithdrawHistory = () => {
   const [withdrawals, setWithdrawals] = useState<LedgerUpdate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { sdk } = useHyperliquid();
   const account = useActiveAccount();
 
@@ -32,12 +33,14 @@ const WithdrawHistory = () => {
         const endTime = Date.now();
         const startTime = endTime - 7 * 24 * 60 * 60 * 1000; // Last 7 days
         const history = await sdk.info.perpetuals.getUserNonFundingLedgerUpdates(account.address, startTime, endTime);
+        
         // Filter only withdraw transactions
         const withdrawHistory = history.filter(item => item.delta.type === 'withdraw')
           .sort((a, b) => b.time - a.time); // Sort by time descending
+        
         setWithdrawals(withdrawHistory);
       } catch (error) {
-        console.error('Error fetching withdraw history:', error);
+        setError('Failed to fetch withdraw history');
       } finally {
         setLoading(false);
       }
@@ -73,6 +76,14 @@ const WithdrawHistory = () => {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#808A9D" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>{error}</Text>
       </View>
     );
   }

@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import PagerView from 'react-native-pager-view';
+import { useLocalSearchParams } from 'expo-router';
 import TradeHistory from './tabs/TradeHistory';
 import OrderHistory from './tabs/OrderHistory';
 import FundingHistory from './tabs/FundingHistory';
@@ -10,11 +11,7 @@ import Transfers from './tabs/Transfers';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 const History = () => {
-  const [activeTab, setActiveTab] = useState(0);
-  const [filterType, setFilterType] = useState('crypto');
-  const pagerRef = useRef<PagerView>(null);
-  const scrollViewRef = useRef<ScrollView>(null);
-
+  const { initialTab } = useLocalSearchParams();
   const tabs = [
     { id: 'trades', label: 'Trade History' },
     { id: 'orders', label: 'Order History' },
@@ -23,6 +20,24 @@ const History = () => {
     { id: 'withdrawals', label: 'Withdrawals' },
     { id: 'transfers', label: 'Transfers' },
   ];
+
+  const getTabIndex = (tabId: string | null) => tabId ? tabs.findIndex(tab => tab.id === tabId) : 0;
+  const [activeTab, setActiveTab] = useState(getTabIndex(initialTab as string));
+  const [filterType, setFilterType] = useState('crypto');
+  const pagerRef = useRef<PagerView>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const newIndex = getTabIndex(initialTab as string);
+    if (newIndex !== activeTab) {
+      setActiveTab(newIndex);
+      pagerRef.current?.setPage(newIndex);
+      scrollViewRef.current?.scrollTo({
+        x: newIndex * 120,
+        animated: true,
+      });
+    }
+  }, [initialTab]);
 
   const handlePageSelected = (e: any) => {
     const newIndex = e.nativeEvent.position;
@@ -88,7 +103,7 @@ const History = () => {
         <PagerView
           ref={pagerRef}
           style={styles.pagerView}
-          initialPage={0}
+          initialPage={getTabIndex(initialTab as string)}
           onPageSelected={handlePageSelected}
         >
           <View key="trades">

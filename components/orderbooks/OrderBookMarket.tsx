@@ -10,6 +10,7 @@ interface OrderBookLevel {
   px: number; // Price
   sz: number; // Size
   barWidth: string; // Bar width as a percentage
+  cumulative: number; // Cumulative size
 }
 
 const OrderBookMarket: React.FC<OrderBookProps> = ({ symbol }) => {
@@ -47,22 +48,46 @@ const OrderBookMarket: React.FC<OrderBookProps> = ({ symbol }) => {
 
       if (data?.levels && Array.isArray(data.levels)) {
         const [bidsData, asksData] = data.levels;
-        const maxBidSize = Math.max(...bidsData.map((bid: any) => bid.sz), 1);
-        const maxAskSize = Math.max(...asksData.map((ask: any) => ask.sz), 1);
-
-        setBids(
-          bidsData.slice(0, 15).map((level: any) => ({
+        
+        // Calculate cumulative amounts
+        let cumulativeBidSize = 0;
+        const processedBids = bidsData.slice(0, 25).map((level: any) => {
+          cumulativeBidSize += parseFloat(level.sz);
+          return {
             px: parseFloat(level.px),
             sz: parseFloat(level.sz),
-            barWidth: `${Math.min((level.sz / maxBidSize) * 100, 100)}%`,
+            cumulative: cumulativeBidSize
+          };
+        });
+
+        let cumulativeAskSize = 0;
+        const processedAsks = asksData.slice(0, 25).map((level: any) => {
+          cumulativeAskSize += parseFloat(level.sz);
+          return {
+            px: parseFloat(level.px),
+            sz: parseFloat(level.sz),
+            cumulative: cumulativeAskSize
+          };
+        });
+
+        // Find max cumulative size for percentage calculation
+        const maxCumulative = Math.max(cumulativeBidSize, cumulativeAskSize);
+
+        setBids(
+          processedBids.map((level: any) => ({
+            px: level.px,
+            sz: level.sz,
+            barWidth: `${(level.cumulative / maxCumulative) * 100}%`,
+            cumulative: level.cumulative
           }))
         );
 
         setAsks(
-          asksData.slice(0, 15).map((level: any) => ({
-            px: parseFloat(level.px),
-            sz: parseFloat(level.sz),
-            barWidth: `${Math.min((level.sz / maxAskSize) * 100, 100)}%`,
+          processedAsks.map((level: any) => ({
+            px: level.px,
+            sz: level.sz,
+            barWidth: `${(level.cumulative / maxCumulative) * 100}%`,
+            cumulative: level.cumulative
           }))
         );
       }
@@ -157,74 +182,76 @@ export default OrderBookMarket;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121212",
-    padding: 10,
-    alignItems: "center",
+    backgroundColor: "#1C1C1C",
+    opacity: 1,
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    width: "100%",
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
-  },
-  midText: {
-    flex: 2,
-    color: "#FFD700",
-    fontWeight: "bold",
-    fontSize: 16,
-    textAlign: "center",
+    backgroundColor: "#1C1C1C",
+    opacity: 1,
   },
   body: {
     flexDirection: "row",
     width: "100%",
-    marginTop: 10,
+    backgroundColor: "#1C1C1C",
+    opacity: 1,
   },
   column: {
     flex: 1,
+    backgroundColor: "#1C1C1C",
   },
   divider: {
-    width: 1,
-    backgroundColor: "#333",
-    marginHorizontal: 5,
+    display: 'none',
   },
   row: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     position: "relative",
-    marginVertical: 2,
-    height: 30,
+    height: 24,
+    paddingHorizontal: 16,
+    zIndex: 1,
+    backgroundColor: "#1C1C1C",
   },
   bidBar: {
     position: "absolute",
-    left: 0,
+    right: 0,
     height: "100%",
-    backgroundColor: "green",
-    opacity: 0.3,
+    backgroundColor: "rgba(22, 199, 132, 0.1)",
+    zIndex: -1,
   },
   askBar: {
     position: "absolute",
     left: 0,
     height: "100%",
-    backgroundColor: "red",
-    opacity: 0.3,
+    backgroundColor: "rgba(234, 57, 67, 0.1)",
+    zIndex: -1,
   },
   text: {
-    fontSize: 14,
-    fontWeight: "bold",
+    fontSize: 13,
+    fontFamily: 'monospace',
+  },
+  headerText: {
+    color: "#808A9D",
+    fontSize: 13,
+    flex: 1,
+    textAlign: "center",
   },
   bidText: {
-    color: "#4CAF50",
+    color: "#16C784",
     marginHorizontal: 6,
   },
   askText: {
-    color: "#FF4D4D",
+    color: "#EA3943",
     marginHorizontal: 6,
   },
-  headerText: {
-    flex: 1,
+  midText: {
+    flex: 2,
+    color: "#808A9D",
+    fontSize: 13,
     textAlign: "center",
   },
 });
