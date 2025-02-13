@@ -176,10 +176,10 @@ const ProfileScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#1A1C24',
   },
   profileCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#2A2D3A',
     margin: 16,
     borderRadius: 12,
     padding: 16,
@@ -199,17 +199,18 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#2A2D3A',
   },
   avatarText: {
     fontSize: 24,
+    color: '#FFFFFF',
   },
   editButton: {
     padding: 8,
   },
   editButtonText: {
     fontSize: 20,
-    color: '#666',
+    color: '#808A9D',
   },
   infoSection: {
     gap: 12,
@@ -222,12 +223,12 @@ const styles = StyleSheet.create({
   infoLabel: {
     width: 80,
     fontSize: 14,
-    color: '#666',
+    color: '#808A9D',
     marginRight: 8,
   },
   infoValue: {
     fontSize: 14,
-    color: '#333',
+    color: '#FFFFFF',
   },
   valueContainer: {
     flex: 1,
@@ -241,13 +242,13 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     flex: 1,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#2A2D3A',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
   },
   logoutText: {
-    color: '#666',
+    color: '#FF3B3F',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -257,7 +258,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#2A2D3A',
   },
   menuItemLeft: {
     flexDirection: 'row',
@@ -266,20 +267,22 @@ const styles = StyleSheet.create({
   menuIcon: {
     fontSize: 20,
     marginRight: 12,
+    color: '#808A9D',
   },
   menuText: {
     fontSize: 16,
+    color: '#FFFFFF',
   },
   menuItemRight: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   statusRegular: {
-    color: '#ffa500',
+    color: '#16C784',
     marginRight: 8,
   },
   statusVerified: {
-    color: '#00c853',
+    color: '#16C784',
     marginRight: 8,
   },
   statusUnlinked: {

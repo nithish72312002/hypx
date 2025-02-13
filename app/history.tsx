@@ -10,11 +10,11 @@ export default function HistoryPage() {
         options={{
           title: 'History',
           headerStyle: {
-            backgroundColor: '#fff',
+            backgroundColor: '#1A1C24',
           },
           headerBackVisible: true,
 
-          headerTintColor: '#000',
+          headerTintColor: '#fff',
           headerTitleStyle: {
             fontWeight: '600',
             fontSize: 16,
@@ -30,6 +30,6 @@ export default function HistoryPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#1A1C24',
   },
 });

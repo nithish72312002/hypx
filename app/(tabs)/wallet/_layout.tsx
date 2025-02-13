@@ -76,18 +76,17 @@ const WalletScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#1A1C24',
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#1A1C24',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
   },
   tabButton: {
     paddingVertical: 12,
-    marginRight: 24,
+    paddingHorizontal: 10,
   },
   activeTab: {
     borderBottomWidth: 2,
@@ -95,11 +94,11 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    color: '#666',
+    color: '#808A9D',
   },
   activeTabText: {
-    color: '#F0B90B',
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontWeight: '500',
   },
 });
 

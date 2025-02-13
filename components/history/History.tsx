@@ -38,6 +38,27 @@ const History = () => {
     pagerRef.current?.setPage(index);
   };
 
+  const getTabColor = (index: number) => {
+    const tab = tabs[index];
+    if (activeTab !== index) return '#808A9D';
+    
+    switch (tab.id) {
+      case 'orders':
+      case 'trades':
+        return '#FFFFFF';
+      case 'funding':
+        return '#F3BA2F';
+      case 'deposits':
+        return '#16C784';
+      case 'withdrawals':
+        return '#FF3B3F';
+      case 'transfers':
+        return '#F3BA2F';
+      default:
+        return '#FFFFFF';
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.headerContainer}>
@@ -53,7 +74,7 @@ const History = () => {
               style={[styles.tab, activeTab === index && styles.activeTab]}
               onPress={() => handleTabPress(index)}
             >
-              <Text style={[styles.tabText, activeTab === index && styles.activeTabText]}>
+              <Text style={[styles.tabText, { color: getTabColor(index) }]}>
                 {tab.label}
               </Text>
             </TouchableOpacity>
@@ -62,34 +83,7 @@ const History = () => {
       </View>
 
       <View style={styles.contentContainer}>
-        <View style={styles.filterContainer}>
-          <View style={styles.filterTabs}>
-            <TouchableOpacity
-              style={[styles.filterTab, filterType === 'crypto' && styles.activeFilterTab]}
-              onPress={() => setFilterType('crypto')}
-            >
-              <Text style={[styles.filterText, filterType === 'crypto' && styles.activeFilterText]}>
-                Crypto
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.filterTab, filterType === 'cash' && styles.activeFilterTab]}
-              onPress={() => setFilterType('cash')}
-            >
-              <Text style={[styles.filterText, filterType === 'cash' && styles.activeFilterText]}>
-                Cash
-              </Text>
-            </TouchableOpacity>
-          </View>
-          <TouchableOpacity style={styles.filterButton}>
-            <Ionicons name="filter" size={20} color="#666" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.helpSection}>
-          <Text style={styles.helpText}>Deposits not arrived? Check solutions here</Text>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
-        </View>
+        
 
         <PagerView
           ref={pagerRef}
@@ -97,22 +91,22 @@ const History = () => {
           initialPage={0}
           onPageSelected={handlePageSelected}
         >
-          <View key="1">
+          <View key="trades">
             <TradeHistory />
           </View>
-          <View key="2">
+          <View key="orders">
             <OrderHistory />
           </View>
-          <View key="3">
+          <View key="funding">
             <FundingHistory />
           </View>
-          <View key="4">
+          <View key="deposits">
             <Deposits />
           </View>
-          <View key="5">
+          <View key="withdrawals">
             <Withdrawals />
           </View>
-          <View key="6">
+          <View key="transfers">
             <Transfers />
           </View>
         </PagerView>
@@ -124,12 +118,12 @@ const History = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#1A1C24',
   },
   headerContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1A1C24',
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#2A2D3A',
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -142,66 +136,15 @@ const styles = StyleSheet.create({
   },
   activeTab: {
     borderBottomWidth: 2,
-    borderBottomColor: '#F0B90B',
+    borderBottomColor: '#F3BA2F',
   },
   tabText: {
-    color: '#666',
     fontSize: 14,
-  },
-  activeTabText: {
-    color: '#F0B90B',
-    fontWeight: '600',
+    fontWeight: '500',
   },
   contentContainer: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  filterContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  filterTabs: {
-    flexDirection: 'row',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 4,
-    padding: 2,
-  },
-  filterTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 4,
-  },
-  activeFilterTab: {
-    backgroundColor: '#fff',
-  },
-  filterText: {
-    color: '#666',
-    fontSize: 14,
-  },
-  activeFilterText: {
-    color: '#000',
-    fontWeight: '500',
-  },
-  filterButton: {
-    padding: 8,
-  },
-  helpSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  helpText: {
-    color: '#666',
-    fontSize: 14,
   },
   pagerView: {
     flex: 1,

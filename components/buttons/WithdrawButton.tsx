@@ -360,7 +360,7 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
           setTimeout(() => {
             setIsModalVisible(false);
             fetchWithdrawableBalance();
-          }, 3000);
+          },5000);
         } else {
           throw new Error('Withdrawal failed: ' + JSON.stringify(response.data));
         }
@@ -597,14 +597,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   withdrawButton: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 2,
-    borderColor: '#6B46C1',
+    backgroundColor: '#1E2026',
+
   },
   buttonText: {
-    color: '#6B46C1',
+    color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '500',
   },
   modalContainer: {
     flex: 1,
@@ -617,7 +616,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   modalContent: {
-    backgroundColor: '#1E1E1E',
+    backgroundColor: '#1A1C24',
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
@@ -647,7 +646,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#2A2D3A',
     padding: 12,
     borderRadius: 8,
     marginBottom: 8,
@@ -663,27 +662,27 @@ const styles = StyleSheet.create({
   amountInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#2A2D3A',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: '#363A45',
   },
   amountInput: {
     flex: 1,
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 16,
     padding: 12,
     backgroundColor: 'transparent',
   },
   maxButton: {
-    backgroundColor: '#333',
+    backgroundColor: '#363A45',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
     marginRight: 8,
   },
   maxButtonText: {
-    color: '#fff',
+    color: '#FFFFFF',
     fontSize: 12,
     fontWeight: 'bold',
   },
@@ -695,22 +694,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   modalButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#EA3943',
     width: '100%',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 16,
-    borderWidth: 2,
-    borderColor: '#6B46C1',
+    borderWidth: 0,
   },
   modalButtonDisabled: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#6B46C1',
+    backgroundColor: '#EA3943',
     opacity: 0.5,
   },
   modalButtonText: {
-    color: '#6B46C1',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',

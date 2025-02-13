@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  StatusBar,
   StyleSheet,
   View,
   Text,
@@ -10,12 +9,9 @@ import {
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
-import axios from "axios";
-import TradingInterface from "@/components/tradinginterface/tradinginterface";
 import { useLocalSearchParams } from "expo-router";
-import OrderBook from "@/components/orderbooks/OrderBook";
 import BottomSheet, { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import WebSocketManager from "@/api/WebSocketManager";
+import { useSpotStore } from "@/store/useSpotStore";
 import SpotTradingInterface from "@/components/tradinginterface/spottradinginterface";
 import SpotOrderBook from "@/components/orderbooks/spotOrderBook";
 import SpotTradeOpenOrdersHoldings from "@/components/openorders/OpenOrdersHoldingsTabs";
@@ -31,6 +27,8 @@ interface SpotTokenData {
 const SpotPage: React.FC = () => {
   const { symbol } = useLocalSearchParams();
   const { symbol: initialSymbol } = useLocalSearchParams();
+  const { tokens: spotTokens, isLoading: spotLoading, subscribeToWebSocket, fetchTokenMapping } = useSpotStore();
+  
   // Maintain two states: one for the symbol (id) and one for the token name.
   const [selectedSymbol, setSelectedSymbol] = useState(
     initialSymbol?.toString() || "PURR/USDC"
@@ -41,89 +39,15 @@ const SpotPage: React.FC = () => {
   // We'll use sdkSymbol for display (header) and pass selectedSymbol to SDK components.
   const [price, setPrice] = useState("3400");
   const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
-
-  // States for spot tokens (for the bottom sheet)
-  const [spotTokens, setSpotTokens] = useState<SpotTokenData[]>([]);
-  const [tokenMapping, setTokenMapping] = useState<{ [key: string]: string }>({});
-  const [spotLoading, setSpotLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch token mapping from API
   useEffect(() => {
-    const fetchTokenMapping = async () => {
-      try {
-        const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
-          type: "spotMetaAndAssetCtxs",
-        });
-        const mapping: { [key: string]: string } = {};
-        const tokensArray = response.data[0]?.tokens || [];
-        const universeArray = response.data[0]?.universe || [];
-
-        // Create a mapping from token index to token name
-        const tokenNameByIndex: { [key: number]: string } = {};
-        tokensArray.forEach((token: any) => {
-          tokenNameByIndex[token.index] = token.name;
-        });
-
-        // Use the first index in "tokens" array of universe to resolve names
-        universeArray.forEach((pair: any) => {
-          const [firstTokenIndex] = pair.tokens;
-          const resolvedName = tokenNameByIndex[firstTokenIndex] || "Unknown";
-          mapping[pair.name] = resolvedName;
-        });
-        setTokenMapping(mapping);
-      } catch (err) {
-        console.error("Error fetching token mapping:", err);
-      }
-    };
-
     fetchTokenMapping();
-  }, []);
-
-  // Listen for spot tokens from websocket once the token mapping is available
-  useEffect(() => {
-    if (Object.keys(tokenMapping).length === 0) return;
-
-    const wsManager = WebSocketManager.getInstance();
-    const listener = (data: any) => {
-      try {
-        const { spotAssetCtxs } = data;
-
-        if (!spotAssetCtxs || !Array.isArray(spotAssetCtxs)) {
-          console.error("Invalid spotAssetCtxs format in WebSocket data.");
-          return;
-        }
-
-        const formattedTokens: SpotTokenData[] = spotAssetCtxs
-          .filter((ctx: any) => parseFloat(ctx.dayBaseVlm) > 0) // Only tokens with volume > 0
-          .map((ctx: any) => {
-            const { coin, markPx, dayBaseVlm, prevDayPx } = ctx;
-            const id = coin;
-            const name = tokenMapping[coin] || coin;
-            const price = markPx !== undefined ? parseFloat(markPx) : 0;
-            const volume = dayBaseVlm !== undefined ? parseFloat(dayBaseVlm) : 0;
-            const prevPrice = prevDayPx !== undefined ? parseFloat(prevDayPx) : 0;
-            const change = prevPrice > 0 ? ((price - prevPrice) / prevPrice) * 100 : 0;
-            return {
-              id,
-              name,
-              price,
-              volume,
-              change,
-            };
-          });
-        setSpotTokens(formattedTokens);
-        setSpotLoading(false);
-      } catch (err) {
-        console.error("Error processing spot websocket data:", err);
-      }
-    };
-
-    wsManager.addListener("webData2", listener);
+    const unsubscribe = subscribeToWebSocket();
     return () => {
-      wsManager.removeListener("webData2", listener);
+      unsubscribe();
     };
-  }, [tokenMapping]);
+  }, []);
 
   const filteredSpotTokens = useMemo(
     () =>
@@ -158,7 +82,7 @@ const SpotPage: React.FC = () => {
       <TouchableOpacity onPress={() => onPress(item)}>
         <View style={styles.tokenRow}>
           <View style={styles.tokenColumn}>
-            <Text style={styles.tokenName}>{item.name}/USDC</Text>
+            <Text style={styles.tokenName}>{item.name}</Text>
             <Text style={styles.tokenVolume}>{item.volume.toFixed(2)} Vol</Text>
           </View>
           <View style={styles.priceColumn}>
@@ -190,12 +114,10 @@ const SpotPage: React.FC = () => {
         {/* Header displays the sdkSymbol (token name) */}
         <View style={styles.header}>
           <TouchableOpacity onPress={handleSnapPress}>
-            <Text style={styles.headerText}>{sdkSymbol}-SPOT</Text>
+            <Text style={styles.headerText}>{sdkSymbol}</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Funding Row */}
-    
         {/* Main Content */}
         <View style={styles.mainContent}>
           <View style={styles.orderBook}>
@@ -266,15 +188,15 @@ const SpotPage: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 20, // extra bottom padding so content isn't cut off
+    paddingBottom: 20,
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -289,34 +211,24 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "bold",
   },
-  fundingRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  fundingText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-  },
   mainContent: {
     flexDirection: "row",
     marginBottom: 16,
   },
   orderBook: {
     flex: 1,
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
     borderRadius: 8,
     marginRight: 8,
   },
   tradingInterface: {
     flex: 1,
-    backgroundColor: "#2E2E3A",
+    backgroundColor: "#13141B",
     borderRadius: 8,
     marginLeft: 8,
   },
   searchInput: {
-    backgroundColor: "#333333",
+    backgroundColor: "#1E1F26",
     color: "#FFFFFF",
     borderRadius: 8,
     padding: 12,
@@ -330,7 +242,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#333333",
+    borderBottomColor: "#1E1F26",
   },
   tokenColumn: {
     flex: 2,
@@ -343,7 +255,7 @@ const styles = StyleSheet.create({
   },
   tokenVolume: {
     fontSize: 12,
-    color: "#FFFFFF",
+    color: "#8E8E93",
   },
   priceColumn: {
     flex: 1,
@@ -358,14 +270,14 @@ const styles = StyleSheet.create({
   },
   tokenPrice: {
     fontSize: 14,
-    color: "#FFFFFF",
     fontWeight: "bold",
+    color: "#FFFFFF",
   },
   positiveChange: {
     fontSize: 14,
     fontWeight: "bold",
     color: "#FFFFFF",
-    backgroundColor: "#34C759",
+    backgroundColor: "#00C087",
     paddingVertical: 4,
     paddingHorizontal: 8,
     borderRadius: 4,
@@ -383,12 +295,12 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: "#FFFFFF",
+    color: "#8E8E93",
     textAlign: "center",
   },
   tabsContainer: {
     minHeight: 500,
-    backgroundColor: "#2E2E3A",
+    backgroundColor: "#13141B",
     borderRadius: 8,
     marginTop: 16,
   },

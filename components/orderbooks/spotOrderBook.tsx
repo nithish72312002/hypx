@@ -177,95 +177,96 @@ const SpotOrderBook: React.FC<OrderBookProps> = ({
   );
 };
 
-const styles =  StyleSheet.create({
-    container: {
-       flex: 1,
-      backgroundColor: "#1E1E2F",
-      borderRadius: 10,
-      paddingVertical: 10,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    orderBookContainer: {
-      flex: 1,
-      width: "100%",
-    },
-    midPriceContainer: {
-      backgroundColor: "#2E2E3A",
-      borderRadius: 5,
-      paddingVertical: 8,
-      marginVertical: 4,
-      alignItems: "center",
-      width: "100%",
-    },
-    midPriceText: {
-      fontSize: 26,
-      fontWeight: "bold",
-      color: "#4CAF50",
-    },
-    errorText: {
-      color: "#FF6B6B",
-      textAlign: "center",
-    },
-    orderRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      height: height * 0.025,
-      paddingHorizontal: 6,
-      position: "relative",
-    },
-    bar: {
-      position: "absolute",
-      top: 0,
-      bottom: 0,
-      left: 0,
-      opacity: 0.3,
-      borderRadius: 4,
-    },
-    askBar: {
-      backgroundColor: "#FF6B6B",
-    },
-    bidBar: {
-      backgroundColor: "#4CAF50",
-    },
-    priceText: {
-      fontSize: width * height * 0.00003,
-      fontWeight: "bold",
-      color: "#FFFFFF",
-    },
-    amountText: {
-      fontSize: width * height * 0.00003,
-      color: "#FFFFFF",
-      textAlign: "right",
-    },
-    loadingText: {
-      fontSize: width * height * 0.00003,
-      color: "#FFFFFF",
-      marginTop: 8,
-    },
-    askText: {
-      color: "#FF6B6B",
-    },
-    bidText: {
-      color: "#4CAF50",
-    },
-    headerRow: {
-      flexDirection: 'row',
-      paddingHorizontal: 6,
-      position: "relative",
-    },
-    headerCell: {
-      flex: 1,
-    },
-    headerText: {
-      color: '#B7BDC6',
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    amountHeaderText: {
-      textAlign: 'right',
-    },
-  });
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#13141B",
+    borderRadius: 4,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  orderBookContainer: {
+    flex: 1,
+    width: "100%",
+  },
+  midPriceContainer: {
+    backgroundColor: "#1E1F26",
+    borderRadius: 4,
+    paddingVertical: 8,
+    marginVertical: 4,
+    alignItems: "center",
+    width: "100%",
+  },
+  midPriceText: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#00C087",
+  },
+  errorText: {
+    color: "#FF3B30",
+    textAlign: "center",
+  },
+  orderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: height * 0.025,
+    paddingHorizontal: 6,
+    position: "relative",
+  },
+  bar: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    opacity: 0.1,
+    borderRadius: 2,
+  },
+  askBar: {
+    backgroundColor: "#FF3B30",
+  },
+  bidBar: {
+    backgroundColor: "#00C087",
+  },
+  priceText: {
+    fontSize: width * height * 0.00003,
+    fontWeight: "500",
+    color: "#FFFFFF",
+  },
+  amountText: {
+    fontSize: width * height * 0.00003,
+    color: "#8E8E93",
+    textAlign: "right",
+  },
+  loadingText: {
+    fontSize: width * height * 0.00003,
+    color: "#8E8E93",
+    marginTop: 8,
+  },
+  askText: {
+    color: "#FF3B30",
+  },
+  bidText: {
+    color: "#00C087",
+  },
+  headerRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 6,
+    position: "relative",
+    marginBottom: 8,
+  },
+  headerCell: {
+    flex: 1,
+  },
+  headerText: {
+    color: '#8E8E93',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  amountHeaderText: {
+    textAlign: 'right',
+  },
+});
 
 export default SpotOrderBook;

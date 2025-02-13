@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -26,11 +26,17 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
     setAddress(account?.address);
   }, [account?.address, setAddress]);
 
+  const onUpdateRef = useRef(onUpdate);
+  
   useEffect(() => {
-    if (onUpdate) {
-      onUpdate(totalValue, totalPnl.toFixed(2));
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
+  useEffect(() => {
+    if (onUpdateRef.current) {
+      onUpdateRef.current(totalValue, totalPnl.toFixed(2));
     }
-  }, [onUpdate, totalValue, totalPnl]);
+  }, [totalValue, totalPnl]);
 
   const renderAssetItem = ({ item }: { item: any }) => {
     const hasPNL = item.pnlValue !== 0;
@@ -75,7 +81,7 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#AB47BC" />
+        <ActivityIndicator size="large" color="#16C784" />
         <Text style={styles.loadingText}>Loading spot assets...</Text>
       </View>
     );
@@ -130,7 +136,7 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
             style={styles.historyButton}
             onPress={() => router.push('/history')}
           >
-            <Ionicons name="time-outline" size={24} color="#666" />
+            <Ionicons name="time-outline" size={24} color="#808A9D" />
           </TouchableOpacity>
         </View>
         <WalletActionButtons />
@@ -152,13 +158,12 @@ const styles = StyleSheet.create({
   },
   wrapper: {
     flex: 1,
-    padding: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#1A1C24',
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#000",
+    color: "#FFFFFF",
     marginHorizontal: 10,
     marginBottom: 16,
   },
@@ -166,13 +171,14 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: '#1A1C24',
   },
   loadingText: {
     marginTop: 8,
-    color: "#666",
+    color: "#808A9D",
   },
   errorText: {
-    color: "#FF6838",
+    color: "#EA3943",
   },
   emptyText: {
     textAlign: 'center',
@@ -180,7 +186,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   assetContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: "#2A2D3A",
     borderRadius: 12,
     padding: 16,
     marginHorizontal: 10,
@@ -194,12 +200,12 @@ const styles = StyleSheet.create({
   assetName: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
+    color: "#FFFFFF",
   },
   assetAmount: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#000",
+    color: "#FFFFFF",
   },
   detailRow: {
     flexDirection: "row",
@@ -221,30 +227,30 @@ const styles = StyleSheet.create({
     borderTopColor: "#f0f0f0",
   },
   detailLabel: {
-    color: "#666",
+    color: "#808A9D",
     fontSize: 12,
     marginBottom: 4,
   },
   detailValue: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#000",
+    color: "#FFFFFF",
   },
   positive: {
-    color: "#00C076",
+    color: "#16C784",
   },
   negative: {
-    color: "#FF6838",
+    color: "#EA3943",
   },
   totalValue: {
     fontSize: 14,
-    color: "#666",
+    color: "#808A9D",
     marginBottom: 4,
   },
   totalAmount: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#000",
+    color: "#FFFFFF",
     marginBottom: 8,
   },
   pnl: {
@@ -252,7 +258,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2A2D3A',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,

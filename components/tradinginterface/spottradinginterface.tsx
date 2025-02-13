@@ -493,14 +493,7 @@ const renderOrderButton = () => {
       </View>
 
       {/* Options Row */}
-      <View style={styles.optionsContainer}>
-        <TouchableOpacity style={styles.optionButton} onPress={() => setIsReduceOnly(!isReduceOnly)}>
-          <View style={[styles.optionIndicator, isReduceOnly && styles.checkedIndicator]}>
-            {isReduceOnly && <Text style={styles.checkmark}>✓</Text>}
-          </View>
-          <Text style={styles.optionText}>Reduce Only</Text>
-        </TouchableOpacity>
-      </View>
+      
 
       {/* Max Row */}
       <View style={styles.row}>
@@ -530,16 +523,33 @@ const renderOrderButton = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1E1E2F",
-    padding: 2,
+    backgroundColor: "#13141B",
   },
   tradingInterface: {
     flex: 1,
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  headerText: {
+    color: '#8E8E93',
+    fontSize: 18,
+    fontWeight: '500',
+  },
+  dropdownButton: {
+    padding: 8,
+  },
+  dropdownButtonText: {
+    color: '#8E8E93',
+    fontSize: 18,
+    fontWeight: '500',
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#1E1F26',
     borderRadius: 8,
     marginVertical: 10,
     padding: 4,
@@ -551,16 +561,17 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   activeBuy: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#00C087',
   },
   activeSell: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF3B30',
   },
   toggleText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#8E8E93',
   },
   activeText: {
+    color: '#FFFFFF',
     fontWeight: 'bold',
   },
   balanceRow: {
@@ -569,7 +580,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   label: {
-    color: '#BBBBBB',
+    color: '#8E8E93',
     fontSize: 14,
   },
   value: {
@@ -584,15 +595,15 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 10,
     alignItems: 'center',
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#1E1F26',
     marginHorizontal: 4,
     borderRadius: 4,
   },
   activeOrderType: {
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#2C2D33',
   },
   orderTypeText: {
-    color: '#FFFFFF',
+    color: '#8E8E93',
     fontSize: 16,
   },
   inputContainer: {
@@ -605,20 +616,24 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#1E1F26',
     color: '#FFFFFF',
     padding: 12,
     borderRadius: 4,
     fontSize: 16,
   },
+  disabledInput: {
+    backgroundColor: '#2C2D33',
+    color: '#8E8E93',
+  },
   maxButton: {
-    backgroundColor: '#333333',
+    backgroundColor: '#1E1F26',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 4,
   },
   maxButtonText: {
-    color: '#FFFFFF',
+    color: '#8E8E93',
     fontSize: 12,
   },
   optionsContainer: {
@@ -635,14 +650,14 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#666666',
+    borderColor: '#8E8E93',
     marginRight: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkedIndicator: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    backgroundColor: '#00C087',
+    borderColor: '#00C087',
   },
   checkmark: {
     color: '#FFFFFF',
@@ -650,7 +665,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   optionText: {
-    color: '#BBBBBB',
+    color: '#8E8E93',
     fontSize: 12,
   },
   row: {
@@ -659,7 +674,7 @@ const styles = StyleSheet.create({
     marginVertical: 1,
   },
   orderButtonSubtext: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#8E8E93',
     fontSize: 12,
   },
   orderButtonValue: {
@@ -670,19 +685,19 @@ const styles = StyleSheet.create({
   orderButton: {
     padding: 16,
     borderRadius: 4,
-    marginVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   buyButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#00C087',
   },
   sellButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF3B30',
   },
   orderButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
-    textAlign: 'center',
   },
   tradeStatus: {
     textAlign: 'center',
@@ -690,82 +705,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   successText: {
-    color: '#4CAF50',
+    color: '#00C087',
   },
   errorText: {
-    color: '#FF6B6B',
+    color: '#FF3B30',
   },
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
-    backgroundColor: '#1E1E1E',
-    borderRadius: 16,
-    padding: 24,
-    width: '90%',
-    maxWidth: 400,
-    position: 'relative',
-  },
-  closeButton: {
-    position: 'absolute',
-    right: 16,
-    top: 16,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#2E2E3A',
-    borderRadius: 16,
-    zIndex: 2,
-  },
-  closeButtonText: {
-    color: '#FFFFFF',
-    fontSize: 28,
-    fontWeight: 'bold',
-    lineHeight: 28,
+    backgroundColor: '#13141B',
+    padding: 20,
+    borderRadius: 8,
+    width: '80%',
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
     color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: 'bold',
     marginBottom: 16,
     textAlign: 'center',
   },
   modalText: {
-    fontSize: 16,
-    color: '#CCCCCC',
-    marginBottom: 24,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  depositButton: {
-    backgroundColor: '#00C076',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  depositButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  establishConnectionButton: {
-    backgroundColor: '#2E2E3A',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  establishConnectionText: {
-    color: '#FFFFFF',
+    color: '#8E8E93',
     fontSize: 14,
-    fontWeight: '500',
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  loginButton: {
-    backgroundColor: '#2E2E3A',
+  modalButton: {
+    backgroundColor: '#00C087',
+    padding: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });
 

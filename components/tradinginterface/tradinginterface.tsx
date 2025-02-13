@@ -537,19 +537,19 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
   },
   tradingInterface: {
     flex: 1,
-    backgroundColor: "#1E1E2F",
+    backgroundColor: "#13141B",
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 2,
   },
   headerText: {
-    color: '#FFFFFF',
+    color: '#8E8E93',
     fontSize: 18,
     fontWeight: '500',
   },
@@ -557,13 +557,13 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   dropdownButtonText: {
-    color: '#FFFFFF',
+    color: '#8E8E93',
     fontSize: 18,
     fontWeight: '500',
   },
   toggleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#1E1F26',
     borderRadius: 8,
     marginVertical: 10,
     padding: 4,
@@ -575,16 +575,17 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   activeBuy: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#00C087',
   },
   activeSell: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF3B30',
   },
   toggleText: {
     fontSize: 16,
-    color: '#FFFFFF',
+    color: '#8E8E93',
   },
   activeText: {
+    color: '#FFFFFF',
     fontWeight: 'bold',
   },
   balanceRow: {
@@ -593,7 +594,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   label: {
-    color: '#BBBBBB',
+    color: '#8E8E93',
     fontSize: 14,
   },
   value: {
@@ -608,15 +609,15 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 10,
     alignItems: 'center',
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#1E1F26',
     marginHorizontal: 4,
     borderRadius: 4,
   },
   activeOrderType: {
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#2C2D33',
   },
   orderTypeText: {
-    color: '#FFFFFF',
+    color: '#8E8E93',
     fontSize: 16,
   },
   inputContainer: {
@@ -629,24 +630,24 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#1E1F26',
     color: '#FFFFFF',
     padding: 12,
     borderRadius: 4,
     fontSize: 16,
   },
   disabledInput: {
-    backgroundColor: '#444444',
-    color: '#888888',
+    backgroundColor: '#2C2D33',
+    color: '#8E8E93',
   },
   maxButton: {
-    backgroundColor: '#333333',
+    backgroundColor: '#1E1F26',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 4,
   },
   maxButtonText: {
-    color: '#FFFFFF',
+    color: '#8E8E93',
     fontSize: 12,
   },
   optionsContainer: {
@@ -663,14 +664,14 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#666666',
+    borderColor: '#8E8E93',
     marginRight: 6,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkedIndicator: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    backgroundColor: '#00C087',
+    borderColor: '#00C087',
   },
   checkmark: {
     color: '#FFFFFF',
@@ -678,7 +679,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   optionText: {
-    color: '#BBBBBB',
+    color: '#8E8E93',
     fontSize: 12,
   },
   row: {
@@ -687,7 +688,7 @@ const styles = StyleSheet.create({
     marginVertical: 1,
   },
   orderButtonSubtext: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#8E8E93',
     fontSize: 12,
   },
   orderButtonValue: {
@@ -701,14 +702,13 @@ const styles = StyleSheet.create({
     marginVertical: 8,
   },
   buyButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#00C087',
   },
   sellButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: '#FF3B30',
   },
- 
   loginButton: {
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#2C2D33',
   },
   orderButtonText: {
     color: '#FFFFFF',
@@ -722,10 +722,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   successText: {
-    color: '#4CAF50',
+    color: '#00C087',
   },
   errorText: {
-    color: '#FF6B6B',
+    color: '#FF3B30',
   },
   modalOverlay: {
     flex: 1,

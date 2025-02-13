@@ -58,7 +58,7 @@ export default function HyperEVMScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#F0B90B" />
+        <ActivityIndicator size="large" color="#16C784" />
         <Text style={styles.loadingText}>Loading balances...</Text>
       </View>
     );
@@ -78,8 +78,8 @@ export default function HyperEVMScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.balanceContainer}>
-          <Text style={styles.label}>Est. Total Value</Text>
-          <Text style={styles.balance}>$0.00 USD</Text>
+          <Text style={styles.totalValue}>Est. Total Value</Text>
+          <Text style={styles.totalAmount}>$0.00 USD</Text>
         </View>
         <WalletActionButtons />
       </View>
@@ -103,24 +103,25 @@ export default function HyperEVMScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#1A1C24',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#1A1C24',
   },
   loadingText: {
-    marginTop: 10,
-    color: '#666',
+    marginTop: 8,
+    color: '#808A9D',
   },
   message: {
     textAlign: 'center',
-    color: '#666',
+    color: '#808A9D',
     marginTop: 20,
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#2A2D3A',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -129,15 +130,15 @@ const styles = StyleSheet.create({
   balanceContainer: {
     marginBottom: 24,
   },
-  label: {
+  totalValue: {
     fontSize: 14,
-    color: '#666',
+    color: '#808A9D',
     marginBottom: 4,
   },
-  balance: {
+  totalAmount: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#000',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
   tokensContainer: {
@@ -157,11 +158,11 @@ const styles = StyleSheet.create({
   tokenSymbol: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#000',
+    color: '#FFFFFF',
   },
   tokenBalance: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#000',
+    color: '#FFFFFF',
   },
 });

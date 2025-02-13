@@ -1,77 +1,115 @@
-import React from 'react';
-import { View, Text, StyleSheet, FlatList } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
+import { useActiveAccount } from 'thirdweb/react';
+import { useHyperliquid } from '@/context/HyperliquidContext';
+import { formatDistanceToNow } from 'date-fns';
 
-interface Transaction {
-  asset: string;
-  amount: string;
-  status: string;
-  timestamp: string;
-  date: string;
+interface Trade {
+  closedPnl: string;
+  coin: string;
+  crossed: boolean;
+  dir: string;
+  hash: string;
+  oid: number;
+  px: string;
+  side: string;
+  startPosition: string;
+  sz: string;
+  time: number;
+  fee: string;
+  feeToken: string;
+  builderFee?: string;
+  tid: number;
 }
 
 const TradeHistory = () => {
-  // Dummy data for demonstration
-  const transactions: Transaction[] = [
-    {
-      asset: 'USDC',
-      amount: '+100',
-      status: 'Completed',
-      timestamp: '18:02:16',
-      date: '2025-02-03',
-    },
-    {
-      asset: 'USDC',
-      amount: '+110.009596',
-      status: 'Completed',
-      timestamp: '07:26:41',
-      date: '2024-12-20',
-    },
-    {
-      asset: 'XRP',
-      amount: '+290',
-      status: 'Completed',
-      timestamp: '21:52:21',
-      date: '2024-12-01',
-    },
-  ];
+  const [trades, setTrades] = useState<Trade[]>([]);
+  const [loading, setLoading] = useState(true);
+  const account = useActiveAccount();
+  const { sdk } = useHyperliquid();
 
-  const renderTransaction = ({ item }: { item: Transaction }) => (
+  useEffect(() => {
+    const fetchTrades = async () => {
+      if (!account?.address || !sdk) return;
+
+      try {
+        const userFills = await sdk.info.getUserFills(account.address);
+        setTrades(userFills);
+      } catch (error) {
+        console.error('Error fetching trades:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTrades();
+  }, [account?.address, sdk]);
+
+  const formatTime = (timestamp: number) => {
+    return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+  };
+
+  const renderTrade = ({ item }: { item: Trade }) => (
     <View style={styles.transactionItem}>
       <View style={styles.transactionLeft}>
-        <Text style={styles.assetName}>{item.asset}</Text>
-        <Text style={styles.timestamp}>{item.date} {item.timestamp}</Text>
+        <Text style={styles.assetName}>{item.coin}</Text>
+        <Text style={styles.timestamp}>{formatTime(item.time)}</Text>
       </View>
       <View style={styles.transactionRight}>
-        <Text style={[styles.amount, { color: item.amount.startsWith('+') ? '#00C076' : '#FF6838' }]}>
-          {item.amount}
+        <Text style={[styles.amount, { color: item.dir.includes('Long') ? '#16C784' : '#FF3B3F' }]}>
+          {item.sz} {item.coin} @ {item.px}
         </Text>
-        <Text style={styles.status}>{item.status}</Text>
+        <Text style={styles.fee}>Fee: {item.fee} {item.feeToken}</Text>
       </View>
     </View>
   );
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#808A9D" />
+      </View>
+    );
+  }
+
   return (
-    <FlatList
-      data={transactions}
-      renderItem={renderTransaction}
-      keyExtractor={(item) => `${item.asset}-${item.timestamp}`}
-      style={styles.container}
-    />
+    <View style={styles.container}>
+      <FlatList
+        data={trades}
+        renderItem={renderTrade}
+        keyExtractor={(item) => `${item.coin}-${item.tid}-${item.time}-${item.hash}`}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No trades found</Text>
+          </View>
+        }
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#1A1C24',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1A1C24',
+  },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 16,
-    backgroundColor: '#fff',
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#2A2D3A',
   },
   transactionLeft: {
     flex: 1,
@@ -81,22 +119,30 @@ const styles = StyleSheet.create({
   },
   assetName: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#000',
+    fontWeight: '600',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   timestamp: {
     fontSize: 12,
-    color: '#666',
+    color: '#808A9D',
   },
   amount: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  status: {
+  fee: {
     fontSize: 12,
-    color: '#666',
+    color: '#808A9D',
+  },
+  emptyContainer: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  emptyText: {
+    color: '#808A9D',
+    fontSize: 14,
   },
 });
 

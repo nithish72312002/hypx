@@ -16,7 +16,6 @@ import { inAppWallet } from "thirdweb/wallets";
 import AppInitializer from "@/components/AppInitializer";
 import { HyperliquidProvider } from "@/context/HyperliquidContext";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import FelixWebView from './screens/FelixWebView';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -49,26 +48,26 @@ export default function RootLayout() {
 									headerShown: true,
 								}}>
 									<Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-									<Stack.Screen name="felix" options={{ 
-										headerShown: true,
-										title: 'Felix Dashboard',
-										headerTintColor: '#007AFF',
-										presentation: 'card',
-										animation: 'slide_from_right'
-									}} />
+								
 									<Stack.Screen name="loginpage" options={{ 
 										headerShown: true,
 										title: "",
 										headerBackVisible: true,
 										presentation: 'card',
-										animation: 'slide_from_right'
+										animation: 'slide_from_right',
+										navigationBarColor: '#1A1C24',
 									}} />
 									<Stack.Screen name="profile/index" options={{ 
 										headerShown: true,
-										title: "Profile",
-										headerBackVisible: true,
-										presentation: 'card',
-										animation: 'slide_from_right'
+										title: 'Profile',
+										headerStyle: {
+											backgroundColor: '#1A1C24',
+										},
+										headerTintColor: '#FFFFFF',
+										headerTitleStyle: {
+											color: '#FFFFFF',
+										},
+										navigationBarColor: '#1A1C24',
 									}} />
 									<Stack.Screen name="+not-found" options={{
 										title: 'Oops!',
