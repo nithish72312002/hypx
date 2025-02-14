@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from "expo-router";
 import BottomSheet, { BottomSheetFlatList } from "@gorhom/bottom-sheet";
+import { Ionicons } from '@expo/vector-icons';
 import { useSpotStore } from "@/store/useSpotStore";
 import SpotTradingInterface from "@/components/tradinginterface/spottradinginterface";
 import SpotOrderBook from "@/components/orderbooks/spotOrderBook";
@@ -25,18 +26,16 @@ interface SpotTokenData {
 }
 
 const SpotPage: React.FC = () => {
-  const { symbol } = useLocalSearchParams();
-  const { symbol: initialSymbol } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const { symbol, sdkSymbol: initialSdkSymbol } = params;
   const { tokens: spotTokens, isLoading: spotLoading, subscribeToWebSocket, fetchTokenMapping } = useSpotStore();
   
-  // Maintain two states: one for the symbol (id) and one for the token name.
   const [selectedSymbol, setSelectedSymbol] = useState(
-    initialSymbol?.toString() || "PURR/USDC"
+    symbol?.toString() || "PURR/USDC"
   );
   const [sdkSymbol, setSdkSymbol] = useState(
-    initialSymbol?.toString() || "PURR"
+    initialSdkSymbol?.toString() || selectedSymbol.split('/')[0]
   );
-  // We'll use sdkSymbol for display (header) and pass selectedSymbol to SDK components.
   const [price, setPrice] = useState("3400");
   const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
   const [searchQuery, setSearchQuery] = useState("");
@@ -113,8 +112,9 @@ const SpotPage: React.FC = () => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header displays the sdkSymbol (token name) */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleSnapPress}>
+          <TouchableOpacity onPress={handleSnapPress} style={styles.headerButton}>
             <Text style={styles.headerText}>{sdkSymbol}</Text>
+            <Ionicons name="chevron-down" size={20} color="#FFFFFF" style={styles.dropdownIcon} />
           </TouchableOpacity>
         </View>
 
@@ -201,15 +201,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   header: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1E1F26',
+  },
+  headerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerText: {
     fontSize: 18,
     color: "#FFFFFF",
     fontWeight: "bold",
+    marginRight: 4,
+  },
+  dropdownIcon: {
+    marginTop: 2,
   },
   mainContent: {
     flexDirection: "row",

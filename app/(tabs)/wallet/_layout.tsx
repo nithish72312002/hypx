@@ -29,12 +29,13 @@ const WalletScreen = () => {
   const [activeTab, setActiveTab] = useState<'Overview' | 'Spot' | 'Futures' | 'HyperEVM'>('Overview');
   const [index, setIndex] = useState(0);
   const account = useActiveAccount();
+  const hyberevmdisabled = true;
 
   const routes = [
     { key: 'Overview', title: 'Overview' },
     { key: 'Spot', title: 'Spot' },
     { key: 'Futures', title: 'Futures' },
-    { key: 'HyperEVM', title: 'HyperEVM' },
+    ...(hyberevmdisabled ? [] : [{ key: 'HyperEVM', title: 'HyperEVM' }])
   ];
 
   const handleIndexChange = (newIndex: number) => {

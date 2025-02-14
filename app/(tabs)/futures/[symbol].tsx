@@ -16,6 +16,8 @@ import OrderBook from "@/components/orderbooks/OrderBook";
 import BottomSheet, { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import OpenOrdersPositionsTabs from "@/components/openorders/OpenOrdersPositionsTabs";
 import { usePerpStore } from "@/store/usePerpStore";
+import WebSocketManager from "@/api/WebSocketManager";
+import { Ionicons } from '@expo/vector-icons';
 
 interface PerpTokenData {
   name: string;
@@ -37,12 +39,70 @@ const FuturesPage: React.FC = () => {
   const fullSymbol = `${selectedSymbol}-PERP`;
   const [price, setPrice] = useState("3400");
   const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
+  const [fundingRate, setFundingRate] = useState("0.0001");
+  const [countdown, setCountdown] = useState("00:00:00");
 
   useEffect(() => {
     const unsubscribe = subscribeToWebSocket();
     return () => {
       unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    const wsManager = WebSocketManager.getInstance();
+
+    const perpAssetListener = (response: any) => {
+      if (response?.coin === selectedSymbol) {
+        const ctx = response.ctx;
+        if (ctx?.funding) {
+          // Convert funding rate to percentage
+          const fundingValue = (ctx.funding) * 100;
+          setFundingRate(fundingValue.toFixed(4));
+        }
+      }
+    };
+
+    console.log(`Subscribing to activeAssetCtx for symbol: ${selectedSymbol}`);
+
+    wsManager.subscribe(
+      "activeAssetCtx",
+      { type: "activeAssetCtx", coin: selectedSymbol },
+      perpAssetListener
+    );
+
+    return () => {
+      console.log(`Unsubscribing from activeAssetCtx for symbol: ${selectedSymbol}`);
+      wsManager.unsubscribe(
+        "activeAssetCtx",
+        { type: "activeAssetCtx", coin: selectedSymbol },
+        perpAssetListener
+      );
+    };
+  }, [selectedSymbol]);
+
+  useEffect(() => {
+    const calculateTimeUntilNextFunding = () => {
+      const now = new Date();
+      const nextFunding = new Date();
+      
+      // Set to next hour in UTC
+      nextFunding.setUTCMinutes(0, 0, 0);
+      nextFunding.setUTCHours(nextFunding.getUTCHours() + 1);
+
+      const diff = nextFunding.getTime() - now.getTime();
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const timer = setInterval(() => {
+      setCountdown(calculateTimeUntilNextFunding());
+    }, 1000);
+
+    return () => clearInterval(timer);
   }, []);
 
   const filteredTokens = useMemo(
@@ -123,17 +183,18 @@ const FuturesPage: React.FC = () => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={handleSnapPress}>
+          <TouchableOpacity onPress={handleSnapPress} style={styles.headerButton}>
             <Text style={styles.title}>{fullSymbol}</Text>
+            <Ionicons name="chevron-down" size={20} color="#FFFFFF" style={styles.dropdownIcon} />
           </TouchableOpacity>
           <View style={styles.fundingContainer}>
             <View style={styles.fundingGroup}>
               <Text style={styles.fundingText}>Funding</Text>
-              <Text style={styles.fundingValue}>0.0064%</Text>
+              <Text style={styles.fundingValue}>{fundingRate}%</Text>
             </View>
             <View style={styles.fundingGroup}>
               <Text style={styles.fundingText}>Countdown</Text>
-              <Text style={styles.fundingValue}>05:58:51</Text>
+              <Text style={styles.fundingValue}>{countdown}</Text>
             </View>
           </View>
         </View>
@@ -222,10 +283,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#1E1F26',
   },
+  headerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   title: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
+    marginRight: 4,
+  },
+  dropdownIcon: {
+    marginTop: 2,
   },
   fundingContainer: {
     flexDirection: 'row',

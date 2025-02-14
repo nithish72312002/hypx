@@ -41,8 +41,7 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
   onOrderTypeChange,
   sdksymbol
 }) => {  
-  const [marginType, setMarginType] = useState('Cross');
-  const [isReduceOnly, setIsReduceOnly] = useState(false);
+  
   const [spotState, setSpotState] = useState<SpotState>({ balances: [] });
   const [size, setSize] = useState('0.01');
   const [isBuy, setIsBuy] = useState(true);
@@ -57,7 +56,7 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
   const fullSymbol = `${sdksymbol}-SPOT`;
   const { wallet, loading: walletLoading, error: walletError, createWallet } = useAgentWallet();
   const { approveAgent } = useApproveAgent();
-  const { approvalCompleted, setApprovalCompleted, queryUserRole } = useApprovalStore();
+  const { approvalCompleted, setApprovalCompleted } = useApprovalStore();  
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
 
   const handleEstablishConnection = async () => {
@@ -99,9 +98,9 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
 
   useEffect(() => {
     if (wallet?.address && account?.address) {
-      queryUserRole(wallet.address, account.address);
+      console.log("Wallet and account addresses available");
     }
-  }, [wallet?.address, account?.address, queryUserRole]);
+  }, [wallet?.address, account?.address]);
 
   useEffect(() => {
     console.log("Modal visibility changed:", isConnectionModalVisible);

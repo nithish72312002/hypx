@@ -11,13 +11,6 @@ export default function TabLayout() {
   const address = account?.address;
   const router = useRouter();
 
-  const handleTabPress = (e: any) => {
-    if (e.target?.toString().includes('Assets') && !address) {
-      e.preventDefault();
-      router.push("/loginpage");
-    }
-  };
-
   return (
     <BottomSheetModalProvider>
       
@@ -38,9 +31,6 @@ export default function TabLayout() {
             marginTop: 0,
           },
           headerShown: false,
-        }}
-        screenListeners={{
-          tabPress: handleTabPress
         }}
       >
         <Tabs.Screen
@@ -86,6 +76,14 @@ export default function TabLayout() {
             tabBarIcon: ({ color }) => (
               <Ionicons name="wallet" size={24} color={color} />
             ),
+          }}
+          listeners={{
+            tabPress: (e) => {
+              if (!address) {
+                e.preventDefault();
+                router.push("/loginpage");
+              }
+            }
           }}
         />
       </Tabs>

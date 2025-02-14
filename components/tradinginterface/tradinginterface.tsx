@@ -55,7 +55,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const fullSymbol = `${symbol}-PERP`;
   const { wallet, loading: walletLoading, error: walletError, createWallet } = useAgentWallet();
   const { approveAgent } = useApproveAgent();
-  const { approvalCompleted, setApprovalCompleted, queryUserRole } = useApprovalStore();
+  const { approvalCompleted, setApprovalCompleted } = useApprovalStore();
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
 
   const handleEstablishConnection = async () => {
@@ -107,9 +107,9 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
 
   useEffect(() => {
     if (wallet?.address && account?.address) {
-      queryUserRole(wallet.address, account.address);
+      // Removed queryUserRole call
     }
-  }, [wallet?.address, account?.address, queryUserRole]);
+  }, [wallet?.address, account?.address]);
 
   useEffect(() => {
     console.log("Modal visibility changed:", isConnectionModalVisible);
