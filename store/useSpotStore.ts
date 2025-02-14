@@ -22,6 +22,10 @@ interface SpotStore {
   fetchTokenMapping: () => Promise<void>;
 }
 
+// Cache for token mapping to avoid repeated API calls
+let tokenMappingCache: { [key: string]: string } | null = null;
+let isFetchingMapping = false;
+
 export const useSpotStore = create<SpotStore>((set, get) => {
   const wsManager = WebSocketManager.getInstance();
   let wsUnsubscribe: (() => void) | null = null;
@@ -31,9 +35,6 @@ export const useSpotStore = create<SpotStore>((set, get) => {
     const mapping: { [key: string]: string } = {};
     const tokensArray = apiResponse[0]?.tokens || [];
     const universeArray = apiResponse[0]?.universe || [];
-
-    console.log("[SpotStore] Token array length:", tokensArray.length);
-    console.log("[SpotStore] Universe array length:", universeArray.length);
 
     const tokenNameByIndex: { [key: number]: string } = {};
     tokensArray.forEach((token: any) => {
@@ -46,22 +47,17 @@ export const useSpotStore = create<SpotStore>((set, get) => {
       mapping[pair.name] = resolvedName;
     });
 
-    console.log("[SpotStore] Generated mapping entries:", Object.keys(mapping).length);
     return mapping;
   };
 
   const listener = (data: any) => {
     try {
-      console.log("[SpotStore] WebSocket data received");
       const { spotAssetCtxs } = data;
-      if (!spotAssetCtxs || !Array.isArray(spotAssetCtxs)) {
-        console.log("[SpotStore] Invalid or empty spotAssetCtxs data");
-        return;
-      }
+      if (!spotAssetCtxs || !Array.isArray(spotAssetCtxs)) return;
 
-      console.log("[SpotStore] Processing", spotAssetCtxs.length, "spot assets");
+      // Use cached token mapping
       const tokenMapping = get().tokenMapping;
-      console.log("[SpotStore] Current token mapping entries:", Object.keys(tokenMapping).length);
+      if (Object.keys(tokenMapping).length === 0) return;
 
       const formattedTokens = spotAssetCtxs
         .map((ctx: any) => {
@@ -94,10 +90,7 @@ export const useSpotStore = create<SpotStore>((set, get) => {
         .filter((token: SpotTokenData) => token.volume > 0)
         .sort((a, b) => b.usdvolume - a.usdvolume);
 
-      console.log("[SpotStore] Formatted tokens:", formattedTokens.length);
-      console.log("[SpotStore] First token sample:", formattedTokens[0]);
       set({ tokens: formattedTokens, isLoading: false });
-      console.log("[SpotStore] Store updated with new tokens");
     } catch (err) {
       console.error("[SpotStore] Error processing WebSocket data:", err);
       set({ isLoading: false });
@@ -105,47 +98,49 @@ export const useSpotStore = create<SpotStore>((set, get) => {
   };
 
   const fetchTokenMapping = async () => {
-    console.log("[SpotStore] Fetching token mapping...");
+    // Return if we already have the mapping or if a fetch is in progress
+    if (tokenMappingCache || isFetchingMapping) {
+      if (tokenMappingCache) {
+        set({ tokenMapping: tokenMappingCache });
+      }
+      return;
+    }
+
+    isFetchingMapping = true;
     try {
       const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
         type: "spotMetaAndAssetCtxs",
       });
 
-      console.log("[SpotStore] Token mapping API response received");
       const mapping = parseTokenMapping(response.data);
+      tokenMappingCache = mapping; // Cache the mapping
       set({ tokenMapping: mapping });
-      console.log("[SpotStore] Token mapping updated in store");
 
       // Connect to WebSocket after we have the mapping
       if (!wsUnsubscribe) {
-        console.log("[SpotStore] Connecting to WebSocket after mapping...");
         wsUnsubscribe = subscribeToWebSocket();
       }
     } catch (err) {
       console.error("[SpotStore] Error fetching token mapping:", err);
       set({ isLoading: false });
+    } finally {
+      isFetchingMapping = false;
     }
   };
 
   const subscribeToWebSocket = () => {
-    console.log("[SpotStore] Subscribing to WebSocket");
     wsManager.addListener("webData2", listener);
     return () => {
-      console.log("[SpotStore] Unsubscribing from WebSocket");
       wsManager.removeListener("webData2", listener);
       wsUnsubscribe = null;
     };
   };
 
-  console.log("[SpotStore] Initializing store");
   return {
     tokens: [],
     isLoading: true,
     tokenMapping: {},
-    setTokens: (tokens) => {
-      console.log("[SpotStore] Manually setting tokens:", tokens.length);
-      set({ tokens });
-    },
+    setTokens: (tokens) => set({ tokens }),
     fetchTokenMapping,
     subscribeToWebSocket: () => {
       // If we already have a subscription, return its cleanup function
@@ -153,8 +148,9 @@ export const useSpotStore = create<SpotStore>((set, get) => {
         return wsUnsubscribe;
       }
       
-      // If we have token mapping, subscribe immediately
-      if (Object.keys(get().tokenMapping).length > 0) {
+      // If we have cached token mapping, use it and subscribe
+      if (tokenMappingCache) {
+        set({ tokenMapping: tokenMappingCache });
         wsUnsubscribe = subscribeToWebSocket();
         return wsUnsubscribe;
       }

@@ -17,7 +17,7 @@ interface TradingFormProps {
 const TradingForm: React.FC<TradingFormProps> = ({ symbol = "BTC" }) => {
   const { sdk } = useHyperliquid();
   const [size, setSize] = useState('0.01');
-  const [price, setPrice] = useState('3400');
+  const [price, setPrice] = useState('');
   const [isBuy, setIsBuy] = useState(true);
   const [tradeStatus, setTradeStatus] = useState<string | null>(null);
   const [leverage, setLeverage] = useState(20);

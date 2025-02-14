@@ -37,7 +37,7 @@ const FuturesPage: React.FC = () => {
     initialSymbol?.toString() || "BTC"
   );
   const fullSymbol = `${selectedSymbol}-PERP`;
-  const [price, setPrice] = useState("3400");
+  const [price, setPrice] = useState("");
   const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
   const [fundingRate, setFundingRate] = useState("0.0001");
   const [countdown, setCountdown] = useState("00:00:00");

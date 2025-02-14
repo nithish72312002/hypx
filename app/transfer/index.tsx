@@ -7,23 +7,26 @@ import {
   TextInput,
   SafeAreaView,
 } from 'react-native';
+import { Stack } from "expo-router";
 import WebSocketManager from "@/api/WebSocketManager";
 import { ethers } from 'ethers';
 import axios from 'axios';
 import { Alert } from 'react-native';
 import { useActiveAccount } from 'thirdweb/react';
 import { Toast } from '@/components/Toast';
+import AntDesign from '@expo/vector-icons/AntDesign';
 
 const TransferPage = () => {
   const [amount, setAmount] = useState('');
   const [fromWallet, setFromWallet] = useState('Spot Wallet');
-  const [toWallet, setToWallet] = useState('USD-M Futures');
+  const [toWallet, setToWallet] = useState('Futures');
   const [spotBalance, setSpotBalance] = useState('0');
   const [perpBalance, setPerpBalance] = useState('0');
   const [signStatus, setSignStatus] = useState("");
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<'loading' | 'success'>('loading');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const account = useActiveAccount();
 
   const hideToast = () => {
@@ -88,13 +91,10 @@ const TransferPage = () => {
   const generateNonce = () => Date.now();
 
   const onClicktransfer = async () => {
+    if (!amount || isSubmitting) return;
+    
     try {
-      if (!account) {
-        Alert.alert("Error", "Wallet is still loading or not available.");
-        return;
-      }
-
-      // Show loading toast before starting transfer
+      setIsSubmitting(true);
       setToastMessage('Processing transfer...');
       setToastType('loading');
       setToastVisible(true);
@@ -159,7 +159,6 @@ const TransferPage = () => {
         // Show success toast
         setToastMessage(`Successfully transferred ${amount} USDC ${destination ? 'to Futures' : 'to Spot'} wallet`);
         setToastType('success');
-        setToastVisible(true);
       } else {
         throw new Error('Transfer failed: ' + JSON.stringify(response.data));
       }
@@ -167,24 +166,35 @@ const TransferPage = () => {
       console.error("Transfer Error:", error);
       setToastVisible(false); // Hide toast on error
       Alert.alert("Error", error.message || "Failed to transfer. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+      setTimeout(() => setToastVisible(false), 3000);
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      <Stack.Screen
+        options={{
+          headerStyle: {
+            backgroundColor: '#1A1C24',
+          },
+          headerTintColor: '#fff',
+          headerTitle: 'Transfer',
+        }}
+      />
       <View style={styles.content}>
         {/* From Wallet Selector */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>From</Text>
           <TouchableOpacity style={styles.selector}>
             <Text style={styles.selectorText}>{fromWallet}</Text>
-            <Text style={styles.arrowIcon}>→</Text>
           </TouchableOpacity>
         </View>
 
         {/* Exchange Icon */}
         <TouchableOpacity style={styles.exchangeButton} onPress={handleExchange}>
-          <Text style={styles.exchangeIcon}>⇅</Text>
+          <AntDesign name="swap" style={styles.exchangeIcon} />
         </TouchableOpacity>
 
         {/* To Wallet Selector */}
@@ -192,7 +202,6 @@ const TransferPage = () => {
           <Text style={styles.label}>To</Text>
           <TouchableOpacity style={styles.selector}>
             <Text style={styles.selectorText}>{toWallet}</Text>
-            <Text style={styles.arrowIcon}>→</Text>
           </TouchableOpacity>
         </View>
 
@@ -201,11 +210,9 @@ const TransferPage = () => {
           <Text style={styles.label}>Coin</Text>
           <TouchableOpacity style={styles.selector}>
             <View style={styles.coinInfo}>
-              <View style={styles.coinIcon} />
               <Text style={styles.selectorText}>USDC</Text>
               <Text style={styles.coinSubtext}>USD Coin</Text>
             </View>
-            <Text style={styles.arrowIcon}>→</Text>
           </TouchableOpacity>
         </View>
 
@@ -218,7 +225,7 @@ const TransferPage = () => {
               value={amount}
               onChangeText={setAmount}
               placeholder="0"
-              placeholderTextColor="#666"
+              placeholderTextColor="#808A9D"
               keyboardType="decimal-pad"
               editable={!toastVisible || toastType !== 'loading'}
             />
@@ -241,12 +248,17 @@ const TransferPage = () => {
         <TouchableOpacity
           style={[
             styles.confirmButton,
-            !amount && styles.confirmButtonDisabled,
+            (!amount || isSubmitting) && styles.confirmButtonDisabled,
           ]}
           onPress={onClicktransfer}
-          disabled={!amount || parseFloat(amount) <= 0 || (toastVisible && toastType === 'loading')}
+          disabled={!amount || isSubmitting}
         >
-          <Text style={styles.confirmButtonText}>Confirm Transfer</Text>
+          <Text style={[
+            styles.confirmButtonText,
+            (!amount || isSubmitting) && styles.confirmButtonTextDisabled
+          ]}>
+            {isSubmitting ? 'Processing...' : 'Confirm Transfer'}
+          </Text>
         </TouchableOpacity>
       </View>
       <View style={styles.toastContainer}>
@@ -266,7 +278,7 @@ const TransferPage = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1E1E2F',
+    backgroundColor: '#1A1C24',
   },
   content: {
     flex: 1,
@@ -285,7 +297,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#888',
+    color: '#808A9D',
     marginBottom: 8,
   },
   selector: {
@@ -293,7 +305,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#2A2D3A',
     borderRadius: 8,
   },
   selectorText: {
@@ -302,25 +314,26 @@ const styles = StyleSheet.create({
   },
   arrowIcon: {
     fontSize: 18,
-    color: '#888',
+    color: '#808A9D',
   },
   exchangeButton: {
     alignSelf: 'center',
     padding: 12,
     marginVertical: -12,
     zIndex: 1,
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#2A2D3A',
     borderRadius: 20,
-    width: 40,
-    height: 40,
+    width: 60,
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 4,
-    borderColor: '#1E1E2F',
+    borderColor: '#1A1C24',
   },
   exchangeIcon: {
-    fontSize: 20,
+    fontSize: 24,
     color: '#FFFFFF',
+    fontWeight: 'bold',
   },
   coinInfo: {
     flexDirection: 'row',
@@ -329,19 +342,19 @@ const styles = StyleSheet.create({
   coinIcon: {
     width: 24,
     height: 24,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#F0B90B',
     borderRadius: 12,
     marginRight: 8,
   },
   coinSubtext: {
     fontSize: 14,
-    color: '#888',
+    color: '#808A9D',
     marginLeft: 8,
   },
   amountContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#2E2E3A',
+    backgroundColor: '#2A2D3A',
     borderRadius: 8,
     padding: 16,
   },
@@ -353,38 +366,41 @@ const styles = StyleSheet.create({
   },
   currencyLabel: {
     fontSize: 16,
-    color: '#888',
+    color: '#808A9D',
     marginHorizontal: 8,
   },
   maxButton: {
-    backgroundColor: '#333',
+    backgroundColor: '#2A2D3A',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 4,
   },
   maxButtonText: {
     fontSize: 12,
-    color: '#FFFFFF',
+    color: '#F0B90B',
   },
   availableBalance: {
     fontSize: 12,
-    color: '#888',
+    color: '#808A9D',
     marginTop: 8,
   },
   confirmButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#F0B90B',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 24,
   },
   confirmButtonDisabled: {
-    backgroundColor: '#333',
+    backgroundColor: '#2A2D3A',
   },
   confirmButtonText: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#000000',
+  },
+  confirmButtonTextDisabled: {
+    color: '#808A9D',
   },
 });
 

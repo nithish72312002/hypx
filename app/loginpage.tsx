@@ -177,7 +177,7 @@ export default function LoginPage() {
             onChangeText={handleInputChange}
             keyboardType={isPhone ? "phone-pad" : "email-address"}
             autoCapitalize="none"
-            placeholderTextColor="#999"
+            placeholderTextColor="#808A9D"
           />
         </View>
 
@@ -191,7 +191,7 @@ export default function LoginPage() {
                 value={verificationCode}
                 onChangeText={setVerificationCode}
                 keyboardType="number-pad"
-                placeholderTextColor="#999"
+                placeholderTextColor="#808A9D"
                 maxLength={6}
               />
             </View>
@@ -199,15 +199,19 @@ export default function LoginPage() {
         )}
 
         <TouchableOpacity 
-          style={styles.nextButton} 
+          style={styles.button} 
           onPress={isVerifying ? handleVerification : handlePreAuth}
         >
-          <Text style={styles.nextButtonText}>
+          <Text style={styles.buttonText}>
             {isVerifying ? "Verify" : "Next"}
           </Text>
         </TouchableOpacity>
 
-        <Text style={styles.orText}>or</Text>
+        <View style={styles.dividerContainer}>
+          <View style={styles.divider} />
+          <Text style={styles.dividerText}>or</Text>
+          <View style={styles.divider} />
+        </View>
 
         <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialLogin("google")}>
           <SocialIcon provider="google" width={18} height={18} />
@@ -235,35 +239,27 @@ export default function LoginPage() {
           snapPoints={snapPoints}
           onChange={handleSheetChanges}
           enablePanDownToClose={true}
-          backgroundStyle={styles.bottomSheetBackground}
+          backgroundStyle={styles.bottomSheet}
         >
-          <View style={styles.bottomSheetContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Country</Text>
-              <TouchableOpacity onPress={handleClosePress}>
-                <Text style={styles.modalCloseButton}>×</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search country or code..."
-                value={searchQuery}
-                onChangeText={handleSearch}
-                autoCapitalize="none"
-                placeholderTextColor="#999"
-              />
-            </View>
-            <BottomSheetFlatList
-              data={filteredCountries}
-              renderItem={renderCountryItem}
-              keyExtractor={item => item.isoCode}
-              initialNumToRender={20}
-              maxToRenderPerBatch={20}
-              windowSize={10}
-              contentContainerStyle={styles.listContainer}
+          <View style={styles.searchBarContainer}>
+            <TextInput
+              style={styles.searchBar}
+              placeholder="Search country or code..."
+              value={searchQuery}
+              onChangeText={handleSearch}
+              autoCapitalize="none"
+              placeholderTextColor="#808A9D"
             />
           </View>
+          <BottomSheetFlatList
+            data={filteredCountries}
+            renderItem={renderCountryItem}
+            keyExtractor={item => item.isoCode}
+            initialNumToRender={20}
+            maxToRenderPerBatch={20}
+            windowSize={10}
+            contentContainerStyle={styles.listContainer}
+          />
         </BottomSheet>
       </View>
     </GestureHandlerRootView>
@@ -273,144 +269,107 @@ export default function LoginPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#1A1C24",
   },
   content: {
     flex: 1,
     padding: 20,
   },
-  closeButton: {
-    alignSelf: 'flex-start',
-    padding: 10,
-  },
-  closeButtonText: {
-    fontSize: 24,
-    color: '#000',
-  },
   title: {
     fontSize: 24,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 24,
+    fontWeight: "bold",
+    marginBottom: 32,
+    color: "#FFFFFF",
   },
   label: {
     fontSize: 14,
-    color: "#666",
     marginBottom: 8,
+    color: "#808A9D",
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: "#f5f5f5",
+    flexDirection: "row",
+    marginBottom: 20,
+    backgroundColor: "#2A2D3A",
     borderRadius: 8,
-    marginBottom: 16,
-  },
-  countrySelector: {
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    borderRightWidth: 1,
-    borderRightColor: "#e0e0e0",
+    overflow: "hidden",
   },
   input: {
     flex: 1,
-    padding: 14,
+    padding: 15,
     fontSize: 16,
-    color: '#000',
+    color: "#FFFFFF",
   },
   phoneInput: {
-    paddingLeft: 12,
+    flex: 1,
+    paddingLeft: 10,
   },
-  nextButton: {
-    backgroundColor: "#fcd535",
+  countrySelector: {
+    padding: 15,
+    borderRightWidth: 1,
+    borderRightColor: "#2A2D3A",
+    justifyContent: "center",
+    backgroundColor: "#2A2D3A",
+  },
+  button: {
+    backgroundColor: "#F0B90B",
+    padding: 15,
     borderRadius: 8,
-    padding: 16,
     alignItems: "center",
     marginBottom: 16,
   },
-  nextButtonText: {
-    color: "#000",
+  buttonText: {
+    color: "#000000",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "bold",
   },
-  orText: {
-    textAlign: 'center',
-    color: '#666',
-    marginVertical: 16,
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: 20,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#2A2D3A",
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: "#808A9D",
   },
   socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 15,
     borderRadius: 8,
-    padding: 16,
     marginBottom: 12,
-    
-  },
-  socialIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 12,
+    backgroundColor: "#2A2D3A",
   },
   socialButtonText: {
-    color: '#000',
+    marginLeft: 12,
     fontSize: 16,
+    color: "#FFFFFF",
   },
-  createAccountButton: {
-    marginTop: 'auto',
+  bottomSheet: {
+    backgroundColor: "#1A1C24",
+  },
+  searchBarContainer: {
     padding: 16,
-  },
-  createAccountText: {
-    color: '#fcd535',
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  bottomSheetBackground: {
-    backgroundColor: '#fff',
-  },
-  bottomSheetContent: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    backgroundColor: "#1A1C24",
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: "#2A2D3A",
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-  },
-  modalCloseButton: {
-    fontSize: 24,
-    color: '#666',
-  },
-  searchContainer: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  searchInput: {
-    backgroundColor: '#f5f5f5',
+  searchBar: {
+    backgroundColor: "#2A2D3A",
     padding: 12,
     borderRadius: 8,
-    fontSize: 16,
-    color: '#000',
-  },
-  listContainer: {
-    backgroundColor: '#fff',
+    color: "#FFFFFF",
   },
   countryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: "#2A2D3A",
   },
   countryFlag: {
     fontSize: 24,
@@ -418,13 +377,13 @@ const styles = StyleSheet.create({
   },
   countryCode: {
     fontSize: 16,
+    color: "#FFFFFF",
     marginRight: 12,
-    width: 60,
-    color: '#666',
+    minWidth: 60,
   },
   countryName: {
     fontSize: 16,
+    color: "#808A9D",
     flex: 1,
-    color: '#000',
   },
 });

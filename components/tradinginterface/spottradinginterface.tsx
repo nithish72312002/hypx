@@ -9,6 +9,7 @@ import { useAgentWallet } from '@/hooks/useAgentWallet';
 import { useApprovalStore } from '@/store/useApprovalStore';
 import { Modal } from 'react-native';
 import axios from 'axios';
+import { AntDesign } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -43,7 +44,7 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
 }) => {  
   
   const [spotState, setSpotState] = useState<SpotState>({ balances: [] });
-  const [size, setSize] = useState('0.01');
+  const [size, setSize] = useState('');
   const [isBuy, setIsBuy] = useState(true);
   const [tradeStatus, setTradeStatus] = useState<string | null>(null);
   const [midPrice, setMidPrice] = useState<number | null>(null);
@@ -58,13 +59,14 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
   const { approveAgent } = useApproveAgent();
   const { approvalCompleted, setApprovalCompleted } = useApprovalStore();  
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const handleEstablishConnection = async () => {
-    if (walletLoading) {
-      console.log("Wallet is still loading...");
+    if (walletLoading || isConnecting) {
       return;
     }
 
+    setIsConnecting(true);
     try {
       // Create wallet if we don't have one
       if (!wallet?.address) {
@@ -72,22 +74,21 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
         await createWallet();
       }
 
-      // Approve agent if we have a wallet
-      try {
-        console.log("Approving agent...");
-        const result = await approveAgent();
-        if (result) {
-          console.log("Agent approved successfully");
+      // Only proceed with approval if we're not already connecting
+      if (!isConnecting && wallet?.address) {
+        try {
+          console.log("Approving agent...");
+          await approveAgent();
           setApprovalCompleted(true);
           setIsConnectionModalVisible(false);
+        } catch (error: any) {
+          if (error.message?.includes('Must deposit')) {
+            setIsConnectionModalVisible(true);
+          }
         }
-      } catch (error: any) {
-        console.error("Error during approval:", error.message);
-        setTradeStatus(error.message);
       }
-    } catch (error: any) {
-      console.error("Error creating wallet:", error.message);
-      setTradeStatus(error.message);
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -366,14 +367,33 @@ const renderOrderButton = () => {
   }
 
   if (!wallet?.address || !approvalCompleted) {
+    const buttonStyles = [
+      styles.orderButton, 
+      styles.establishConnectionButton,
+      (walletLoading || isConnecting) && styles.disabledButton
+    ];
+    const textStyles = [
+      styles.orderButtonText,
+      (walletLoading || isConnecting) && styles.disabledButtonText
+    ];
+    
+    if (walletLoading || isConnecting) {
+      return (
+        <View style={buttonStyles}>
+          <Text style={textStyles}>
+            Connecting...
+          </Text>
+        </View>
+      );
+    }
+
     return (
       <TouchableOpacity 
-        style={[styles.orderButton, styles.establishConnectionButton]} 
+        style={buttonStyles}
         onPress={handleEstablishConnection}
-        disabled={walletLoading}
       >
-        <Text style={styles.orderButtonText}>
-          {walletLoading ? 'Loading...' : 'Establish Connection'}
+        <Text style={textStyles}>
+          Establish Connection
         </Text>
       </TouchableOpacity>
     );
@@ -402,12 +422,15 @@ const renderOrderButton = () => {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setIsConnectionModalVisible(false)}
-          >
-            <Text style={styles.closeButtonText}>✕</Text>
-          </TouchableOpacity>
+          <View style={styles.closeButtonContainer}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setIsConnectionModalVisible(false)}
+              activeOpacity={0.7}
+            >
+              <AntDesign name="close" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.modalTitle}>Deposit Required</Text>
           <Text style={styles.modalText}>
@@ -532,6 +555,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: 2,
+  },
+  depositButton: {
+    backgroundColor: '#00C076',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  depositButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loginButton: {
+    backgroundColor: '#2C2D33',
+  },
+  closeButtonContainer: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    zIndex: 2,
+  },
+  closeButton: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2E2E3A',
+    borderRadius: 16,
+  },
+  closeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 28,
+    fontWeight: 'bold',
+    lineHeight: 28,
   },
   headerText: {
     color: '#8E8E93',
@@ -686,6 +748,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: '100%',
   },
   buyButton: {
     backgroundColor: '#00C087',
@@ -693,10 +756,31 @@ const styles = StyleSheet.create({
   sellButton: {
     backgroundColor: '#FF3B30',
   },
+  loginButton: {
+    backgroundColor: '#2C2D33',
+  },
+  establishConnectionButton: {
+    backgroundColor: '#2E2E3A',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: '100%',
+    height: 48,
+  },
   orderButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  disabledButton: {
+    backgroundColor: '#1E1F26',
+    opacity: 0.7,
+  },
+  disabledButtonText: {
+    color: '#8E8E93',
   },
   tradeStatus: {
     textAlign: 'center',

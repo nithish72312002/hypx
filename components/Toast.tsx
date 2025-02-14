@@ -51,33 +51,35 @@ export const Toast: React.FC<ToastProps> = ({ visible, message, type, onHide }) 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    left: '5%',
-    right: '5%',
-    top: '100%',
-    marginTop: 20, // Increased from 10 to 40 to move it lower
-    backgroundColor: '#FFFFFF',
+    alignSelf: 'center',
+    bottom: 20,
+    backgroundColor: '#2A2D3A',
     borderRadius: 8,
-    padding: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
     zIndex: 9999,
+    maxWidth: '90%',
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-start',
   },
   icon: {
     marginRight: 8,
-    color: '#6B46C1',
+    color: '#F0B90B',
     fontSize: 16,
     fontWeight: 'bold',
   },
   message: {
-    color: '#1a1a1a',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
+    flexShrink: 1,
   },
 });

@@ -36,7 +36,7 @@ const SpotPage: React.FC = () => {
   const [sdkSymbol, setSdkSymbol] = useState(
     initialSdkSymbol?.toString() || selectedSymbol.split('/')[0]
   );
-  const [price, setPrice] = useState("3400");
+  const [price, setPrice] = useState("");
   const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
   const [searchQuery, setSearchQuery] = useState("");
 

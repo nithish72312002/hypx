@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { useAgentWallet } from '@/hooks/useAgentWallet';
 import { useApprovalStore } from '@/store/useApprovalStore';
 import axios from 'axios';
+import { AntDesign } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -42,11 +43,12 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const [marginType, setMarginType] = useState('Cross');
   const [isReduceOnly, setIsReduceOnly] = useState(false);
   const [activeAssetData, setActiveAssetData] = useState<WsActiveAssetData | null>(null);
-  const [size, setSize] = useState('0.01');
+  const [size, setSize] = useState('');
   const [isBuy, setIsBuy] = useState(true);
   const [tradeStatus, setTradeStatus] = useState<string | null>(null);
   const [midPrice, setMidPrice] = useState<number | null>(null);
   const [szDecimals, setSzDecimals] = useState<number>(0);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const wsManager = WebSocketManager.getInstance();
   const account = useActiveAccount();
@@ -59,44 +61,33 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
 
   const handleEstablishConnection = async () => {
-    if (walletLoading) {
-      console.log("Wallet is still loading...");
+    if (walletLoading || isConnecting) {
       return;
     }
 
+    setIsConnecting(true);
     try {
-      // If no wallet, create a new one
+      // Create wallet if we don't have one
       if (!wallet?.address) {
-        console.log("No wallet found, creating new wallet...");
-        const newWallet = await createWallet();
-        if (!newWallet) {
-          console.error("Failed to create wallet");
-          return;
-        }
-        console.log("New wallet created:", newWallet.address);
+        console.log("Creating wallet...");
+        await createWallet();
       }
 
-      // Approve agent if we have a wallet
-      try {
-        console.log("Approving agent...");
-        const result = await approveAgent();
-        if (result) {
-          console.log("Agent approved successfully");
+      // Only proceed with approval if we're not already connecting
+      if (!isConnecting && wallet?.address) {
+        try {
+          console.log("Approving agent...");
+          await approveAgent();
           setApprovalCompleted(true);
           setIsConnectionModalVisible(false);
+        } catch (error: any) {
+          if (error.message?.includes('Must deposit')) {
+            setIsConnectionModalVisible(true);
+          }
         }
-      } catch (error: any) {
-        console.error("Error during approval:", error.message);
-        setApprovalCompleted(false);
-        
-        if (error.message?.includes('Must deposit')) {
-          setIsConnectionModalVisible(true);
-        }
-        return; // Exit early on error
       }
-    } catch (error) {
-      console.error('Error establishing connection:', error);
-      setApprovalCompleted(false);
+    } finally {
+      setIsConnecting(false);
     }
   };
 
@@ -365,14 +356,33 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
     }
 
     if (!wallet?.address || !approvalCompleted) {
+      const buttonStyles = [
+        styles.orderButton, 
+        styles.establishConnectionButton,
+        (walletLoading || isConnecting) && styles.disabledButton
+      ];
+      const textStyles = [
+        styles.orderButtonText,
+        (walletLoading || isConnecting) && styles.disabledButtonText
+      ];
+      
+      if (walletLoading || isConnecting) {
+        return (
+          <View style={buttonStyles}>
+            <Text style={textStyles}>
+              Connecting...
+            </Text>
+          </View>
+        );
+      }
+
       return (
         <TouchableOpacity 
-          style={[styles.orderButton, styles.establishConnectionButton]} 
+          style={buttonStyles}
           onPress={handleEstablishConnection}
-          disabled={walletLoading}
         >
-          <Text style={styles.orderButtonText}>
-            {walletLoading ? 'Loading...' : 'Establish Connection'}
+          <Text style={textStyles}>
+            Establish Connection
           </Text>
         </TouchableOpacity>
       );
@@ -404,7 +414,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
             style={styles.closeButton}
             onPress={() => setIsConnectionModalVisible(false)}
           >
-            <Text style={styles.closeButtonText}>✕</Text>
+            <AntDesign name="close" size={20} color="#FFFFFF" />
           </TouchableOpacity>
 
           <Text style={styles.modalTitle}>Deposit Required</Text>
@@ -795,6 +805,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '500',
+  },
+  disabledButton: {
+    backgroundColor: '#1E1F26',
+    opacity: 0.7,
+  },
+  disabledButtonText: {
+    color: '#8E8E93',
   },
 });
 

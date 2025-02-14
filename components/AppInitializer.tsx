@@ -3,6 +3,7 @@ import WebSocketManager from "@/api/WebSocketManager";
 import { useActiveAccount } from "thirdweb/react";
 import { useApprovalStore } from "@/store/useApprovalStore";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
+import { useSpotStore } from "@/store/useSpotStore";
 
 interface AppInitializerContextType {
   // Empty interface since we removed needsDeposit
@@ -22,16 +23,23 @@ export default function AppInitializer({ children }: { children?: React.ReactNod
   const account = useActiveAccount();
   const { queryUserRole } = useApprovalStore();
   const { wallet } = useAgentWallet();
+  const { subscribeToWebSocket, fetchTokenMapping } = useSpotStore();
 
   useEffect(() => {
+    // Initialize spot store
+    fetchTokenMapping();
+    subscribeToWebSocket();
+
     if (account?.address) {
       WebSocketManager.getInstance().updateUserAddress(account.address);
       // Initialize approval check when account is available
-      queryUserRole(wallet.address, account.address);
+      if (wallet) {  
+        queryUserRole(wallet.address, account.address);
+      }
     } else {
       WebSocketManager.getInstance().updateUserAddress("0x0000000000000000000000000000000000000000");
     }
-  }, [account?.address, queryUserRole]);
+  }, [account?.address, wallet]);
 
   const contextValue = {};
 

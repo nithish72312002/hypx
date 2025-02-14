@@ -8,23 +8,26 @@ interface OrderBookProps {
   tradeType?: 'Limit' | 'Market';
 }
 
+interface OrderLevel {
+  px: number;
+  sz: number;
+  cumulative: number;
+  barWidth: string;
+}
+
 const { width } = Dimensions.get('window');
 const { height } = Dimensions.get('window');
-
 
 const OrderBook: React.FC<OrderBookProps> = ({
   symbol,
   onPriceSelect,
-  tradeType = 'Limit', // Destructure the new prop
-
+  tradeType = 'Limit',
 }) => {
-  const [bids, setBids] = useState<any[]>([]);
-  const [asks, setAsks] = useState<any[]>([]);
+  const [bids, setBids] = useState<OrderLevel[]>([]);
+  const [asks, setAsks] = useState<OrderLevel[]>([]);
   const [midPrice, setMidPrice] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
- 
 
   const maxLevels = tradeType === 'Limit' ? 8 : 6;
 
@@ -40,18 +43,46 @@ const OrderBook: React.FC<OrderBookProps> = ({
 
       if (data.levels && Array.isArray(data.levels)) {
         const [bidsData, asksData] = data.levels;
+
+        // Calculate cumulative amounts for bids
+        let cumulativeBidSize = 0;
+        const processedBids = bidsData.slice(0, maxLevels).map((level: any) => {
+          cumulativeBidSize += parseFloat(level.sz);
+          return {
+            px: parseFloat(level.px),
+            sz: parseFloat(level.sz),
+            cumulative: cumulativeBidSize
+          };
+        });
+
+        // Calculate cumulative amounts for asks
+        let cumulativeAskSize = 0;
+        const processedAsks = asksData.slice(0, maxLevels).map((level: any) => {
+          cumulativeAskSize += parseFloat(level.sz);
+          return {
+            px: parseFloat(level.px),
+            sz: parseFloat(level.sz),
+            cumulative: cumulativeAskSize
+          };
+        });
+
+        // Find max cumulative size for percentage calculation
+        const maxCumulative = Math.max(cumulativeBidSize, cumulativeAskSize);
+
         setBids(
-          bidsData.slice(0, maxLevels).map((level: any) => ({
-            px: parseFloat(level.px),
-            sz: parseFloat(level.sz),
+          processedBids.map((level) => ({
+            ...level,
+            barWidth: `${(level.cumulative / maxCumulative) * 100}%`
           }))
         );
+
         setAsks(
-          asksData.slice(0, maxLevels).map((level: any) => ({
-            px: parseFloat(level.px),
-            sz: parseFloat(level.sz),
+          processedAsks.map((level) => ({
+            ...level,
+            barWidth: `${(level.cumulative / maxCumulative) * 100}%`
           }))
         );
+        
         setIsLoading(false);
       }
     };
@@ -63,9 +94,6 @@ const OrderBook: React.FC<OrderBookProps> = ({
         setMidPrice(NaN);
       }
     };
-
-
-
 
     wsManager.subscribe(
       "l2Book",
@@ -91,37 +119,33 @@ const OrderBook: React.FC<OrderBookProps> = ({
     if (!item || typeof item.px !== "number" || typeof item.sz !== "number") {
       return null;
     }
-    const maxSize =
-      isAsk ? Math.max(...asks.map((ask) => ask.sz)) || 1 : Math.max(...bids.map((bid) => bid.sz)) || 1;
-    const barWidth = `${Math.min(item.sz / maxSize, 1) * 100}%`;
 
     return (
       <TouchableOpacity
         onPress={() => {
-          // When the row is tapped, call the callback with the price.
           if (onPriceSelect) {
             onPriceSelect(item.px);
           }
         }}
       >
-
-      <View style={[styles.orderRow, { marginVertical: 2 }]}>
-        <View
-          style={[
-            styles.bar,
-            isAsk ? styles.askBar : styles.bidBar,
-            { width: barWidth },
-          ]}
-        />
-        <View style={styles.priceCell}>
-          <Text style={[styles.priceText, isAsk ? styles.askText : styles.bidText]}>
-            {item.px}
-          </Text>
+        <View style={[styles.orderRow, { marginVertical: 2 }]}>
+          <View
+            style={[
+              styles.bar,
+              isAsk ? styles.askBar : styles.bidBar,
+              { width: item.barWidth },
+            ]}
+          />
+          <View style={styles.priceCell}>
+            <Text style={[styles.priceText, isAsk ? styles.askText : styles.bidText]}>
+              {item.px}
+            </Text>
+          </View>
+          <View style={styles.amountCell}>
+            <Text style={styles.amountText}>{item.sz}</Text>
+          </View>
         </View>
-        <View style={styles.amountCell}>
-          <Text style={styles.amountText}>{item.sz}</Text>
-        </View>
-      </View></TouchableOpacity>
+      </TouchableOpacity>
     );
   };
 
@@ -170,7 +194,7 @@ const OrderBook: React.FC<OrderBookProps> = ({
         />
         <View style={styles.midPriceContainer}>
           <Text style={styles.midPriceText}>
-            {midPrice !== null ? midPrice.toFixed(2) : "NaN"}
+            {midPrice !== null ? midPrice.toPrecision(6) : "NaN"}
           </Text>
         </View>
         <FlatList
@@ -185,101 +209,101 @@ const OrderBook: React.FC<OrderBookProps> = ({
 };
 
 const styles =  StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: "#13141B",
-      borderRadius: 4,
-      paddingVertical: 10,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    orderBookContainer: {
-      flex: 1,
-      width: "100%",
-    },
-    midPriceContainer: {
-      backgroundColor: "#1E1F26",
-      borderRadius: 4,
-      paddingVertical: 8,
-      marginVertical: 4,
-      alignItems: "center",
-      width: "100%",
-    },
-    midPriceText: {
-      fontSize: 26,
-      fontWeight: "bold",
-      color: "#00C087",
-    },
-    errorText: {
-      color: "#FF3B30",
-      textAlign: "center",
-    },
-    orderRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      height: height * 0.025,
-      paddingHorizontal: 6,
-      position: "relative",
-    },
-    bar: {
-      position: "absolute",
-      top: 0,
-      bottom: 0,
-      left: 0,
-      opacity: 0.1,
-      borderRadius: 2,
-    },
-    askBar: {
-      backgroundColor: "#FF3B30",
-    },
-    bidBar: {
-      backgroundColor: "#00C087",
-    },
-    priceText: {
-      fontSize: width * height * 0.00003,
-      fontWeight: "500",
-      color: "#FFFFFF",
-    },
-    amountText: {
-      fontSize: width * height * 0.00003,
-      color: "#8E8E93",
-      textAlign: "right",
-    },
-    loadingText: {
-      fontSize: width * height * 0.00003,
-      color: "#8E8E93",
-      marginTop: 8,
-    },
-    askText: {
-      color: "#FF3B30",
-    },
-    bidText: {
-      color: "#00C087",
-    },
-    headerRow: {
-      flexDirection: 'row',
-      paddingHorizontal: 6,
-      position: "relative",
-      marginBottom: 8,
-    },
-    headerCell: {
-      flex: 1,
-    },
-    headerText: {
-      color: '#8E8E93',
-      fontSize: 14,
-      fontWeight: '500',
-    },
-    amountHeaderText: {
-      textAlign: 'right',
-    },
-    priceCell: {
-      flex: 1,
-    },
-    amountCell: {
-      flex: 1,
-    },
+  container: {
+    flex: 1,
+    backgroundColor: "#13141B",
+    borderRadius: 4,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  orderBookContainer: {
+    flex: 1,
+    width: "100%",
+  },
+  midPriceContainer: {
+    backgroundColor: "#1E1F26",
+    borderRadius: 4,
+    paddingVertical: 8,
+    marginVertical: 4,
+    alignItems: "center",
+    width: "100%",
+  },
+  midPriceText: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: "#00C087",
+  },
+  errorText: {
+    color: "#FF3B30",
+    textAlign: "center",
+  },
+  orderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    height: height * 0.025,
+    paddingHorizontal: 6,
+    position: "relative",
+  },
+  bar: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    opacity: 0.1,
+    borderRadius: 2,
+  },
+  askBar: {
+    backgroundColor: "#FF3B30",
+  },
+  bidBar: {
+    backgroundColor: "#00C087",
+  },
+  priceText: {
+    fontSize: width * height * 0.00003,
+    fontWeight: "500",
+    color: "#FFFFFF",
+  },
+  amountText: {
+    fontSize: width * height * 0.00003,
+    color: "#8E8E93",
+    textAlign: "right",
+  },
+  loadingText: {
+    fontSize: width * height * 0.00003,
+    color: "#8E8E93",
+    marginTop: 8,
+  },
+  askText: {
+    color: "#FF3B30",
+  },
+  bidText: {
+    color: "#00C087",
+  },
+  headerRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 6,
+    position: "relative",
+    marginBottom: 8,
+  },
+  headerCell: {
+    flex: 1,
+  },
+  headerText: {
+    color: '#8E8E93',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  amountHeaderText: {
+    textAlign: 'right',
+  },
+  priceCell: {
+    flex: 1,
+  },
+  amountCell: {
+    flex: 1,
+  },
 });
 
 export default OrderBook;

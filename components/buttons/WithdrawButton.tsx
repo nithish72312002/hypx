@@ -23,7 +23,7 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
   const MIN_WITHDRAW = 2;
   const router = useRouter();
 
-  const hyberliquiddisabled = false;
+  const hyberliquiddisabled = true;
 
   const renderBackdrop = useCallback(
     (props: any) => (
@@ -117,6 +117,7 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
   const [isTokenDropdownOpen, setIsTokenDropdownOpen] = useState(false);
   const [selectedChain, setSelectedChain] = useState('arbitrum');
   const [isChainDropdownOpen, setIsChainDropdownOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Handle chain switching
   useEffect(() => {
@@ -177,13 +178,16 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
 
   const withdraw3 = async () => {
     try {
+      setIsLoading(true);
       if (!account?.address) {
         showToast('Please connect your wallet first', 'loading');
+        setIsLoading(false);
         return;
       }
 
       if (!amount || parseFloat(amount) < MIN_WITHDRAW) {
         showToast(`Minimum withdrawal is ${MIN_WITHDRAW} USDC`, 'loading');
+        setIsLoading(false);
         return;
       }
 
@@ -258,11 +262,14 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
     } catch (error) {
       console.error("Withdrawal Error:", error);
       showToast('Failed to process withdrawal', 'loading');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const spotwithdraw = async () => {
     try {
+      setIsLoading(true);
       console.log('Starting spot withdrawal with params:', {
         address: account?.address,
         amount,
@@ -273,16 +280,19 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
 
       if (!account?.address) {
         showToast('Please connect your wallet first', 'loading');
+        setIsLoading(false);
         return;
       }
 
       if (!amount || amount === '0' || amount === '') {
         showToast('Please enter an amount', 'loading');
+        setIsLoading(false);
         return;
       }
 
       if (!selectedToken) {
         showToast('Please select a token', 'loading');
+        setIsLoading(false);
         return;
       }
 
@@ -381,6 +391,8 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
     } catch (error) {
       console.error("Withdrawal Error:", error);
       showToast('Failed to process withdrawal', 'loading');
+    } finally {
+      setIsLoading(false);
     }
   };  
 
@@ -389,7 +401,6 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
       <TouchableOpacity
         style={[styles.button, styles.withdrawButton]}
         onPress={handlePress}
-        disabled={hyberliquiddisabled}
       >
         <Text style={styles.buttonText}>Withdraw</Text>
       </TouchableOpacity>
@@ -600,21 +611,22 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
 
               <TouchableOpacity
                 style={[
-                  styles.modalButton, 
+                  styles.modalButton,
                   ((!amount || amount === '0' || amount === '') || 
-                   (selectedChain === 'arbitrum' && parseFloat(amount) < MIN_WITHDRAW)) && 
+                   (parseFloat(amount) < MIN_WITHDRAW) ||
+                   isLoading) && 
                   styles.modalButtonDisabled
                 ]}
                 onPress={selectedChain === 'hyperliquid' ? spotwithdraw : withdraw3}
                 disabled={(!amount || amount === '0' || amount === '') || 
-                         (selectedChain === 'arbitrum' && parseFloat(amount) < MIN_WITHDRAW)}
+                         (parseFloat(amount) < MIN_WITHDRAW) ||
+                         isLoading}
               >
                 <Text style={styles.modalButtonText}>
-                  {(!amount || amount === '0' || amount === '') ? 'Enter amount' :
-                   (selectedChain === 'arbitrum' && parseFloat(amount) < MIN_WITHDRAW) 
-                     ? `Minimum Withdrawal ${MIN_WITHDRAW} USDC`
-                     : 'Withdraw'
-                  }
+                  {isLoading ? 'Processing...' : 
+                   !amount || amount === '0' || amount === '' ? 'Enter amount' :
+                   parseFloat(amount) < MIN_WITHDRAW ? `Minimum withdrawal ${MIN_WITHDRAW} USDC` :
+                   'Withdraw'}
                 </Text>
               </TouchableOpacity>
             </TouchableOpacity>
@@ -738,23 +750,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   modalButton: {
-    backgroundColor: '#EA3943',
+    backgroundColor: '#5e69ee',
     width: '100%',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 16,
-    borderWidth: 0,
+    justifyContent: 'center',
+    marginTop: 10,
   },
   modalButtonDisabled: {
-    backgroundColor: '#EA3943',
-    opacity: 0.5,
+    backgroundColor: '#2A2D3A',
+    opacity: 0.6,
   },
   modalButtonText: {
-    color: '#FFFFFF',
+    color: '#000000',
     fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: '600',
   },
   dropdownContainer: {
     position: 'relative',

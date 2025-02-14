@@ -8,23 +8,27 @@ interface OrderBookProps {
   tradeType?: 'Limit' | 'Market';
 }
 
+interface OrderLevel {
+  px: number;
+  sz: number;
+  cumulative: number;
+  barWidth: string;
+}
+
 const { width } = Dimensions.get('window');
 const { height } = Dimensions.get('window');
-
 
 const SpotOrderBook: React.FC<OrderBookProps> = ({
   symbol,
   onPriceSelect, 
-  tradeType = 'Limit', // Destructure the new prop
+  tradeType = 'Limit', 
 
 }) => {
-  const [bids, setBids] = useState<any[]>([]);
-  const [asks, setAsks] = useState<any[]>([]);
+  const [bids, setBids] = useState<OrderLevel[]>([]);
+  const [asks, setAsks] = useState<OrderLevel[]>([]);
   const [midPrice, setMidPrice] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
- 
 
   const maxLevels = tradeType === 'Limit' ? 7 : 5;
 
@@ -37,18 +41,46 @@ const SpotOrderBook: React.FC<OrderBookProps> = ({
 
     if (data.levels && Array.isArray(data.levels)) {
       const [bidsData, asksData] = data.levels;
+
+      // Calculate cumulative amounts for bids
+      let cumulativeBidSize = 0;
+      const processedBids = bidsData.slice(0, maxLevels).map((level: any) => {
+        cumulativeBidSize += parseFloat(level.sz);
+        return {
+          px: parseFloat(level.px),
+          sz: parseFloat(level.sz),
+          cumulative: cumulativeBidSize
+        };
+      });
+
+      // Calculate cumulative amounts for asks
+      let cumulativeAskSize = 0;
+      const processedAsks = asksData.slice(0, maxLevels).map((level: any) => {
+        cumulativeAskSize += parseFloat(level.sz);
+        return {
+          px: parseFloat(level.px),
+          sz: parseFloat(level.sz),
+          cumulative: cumulativeAskSize
+        };
+      });
+
+      // Find max cumulative size for percentage calculation
+      const maxCumulative = Math.max(cumulativeBidSize, cumulativeAskSize);
+
       setBids(
-        bidsData.slice(0, maxLevels).map((level: any) => ({
-          px: parseFloat(level.px),
-          sz: parseFloat(level.sz),
+        processedBids.map((level) => ({
+          ...level,
+          barWidth: `${(level.cumulative / maxCumulative) * 100}%`
         }))
       );
+
       setAsks(
-        asksData.slice(0, maxLevels).map((level: any) => ({
-          px: parseFloat(level.px),
-          sz: parseFloat(level.sz),
+        processedAsks.map((level) => ({
+          ...level,
+          barWidth: `${(level.cumulative / maxCumulative) * 100}%`
         }))
       );
+      
       setIsLoading(false);
     }
   }, [symbol, maxLevels]);
@@ -88,33 +120,30 @@ const SpotOrderBook: React.FC<OrderBookProps> = ({
     if (!item || typeof item.px !== "number" || typeof item.sz !== "number") {
       return null;
     }
-    const maxSize =
-      isAsk ? Math.max(...asks.map((ask) => ask.sz)) || 1 : Math.max(...bids.map((bid) => bid.sz)) || 1;
-    const barWidth = `${Math.min(item.sz / maxSize, 1) * 100}%`;
+    
 
     return (
       <TouchableOpacity
         onPress={() => {
-          // When the row is tapped, call the callback with the price.
           if (onPriceSelect) {
             onPriceSelect(item.px);
           }
         }}
       >
-
-      <View style={[styles.orderRow, { marginVertical: 2 }]}>
-        <View
-          style={[
-            styles.bar,
-            isAsk ? styles.askBar : styles.bidBar,
-            { width: barWidth },
-          ]}
-        />
-        <Text style={[styles.priceText, isAsk ? styles.askText : styles.bidText]}>
-          {item.px}
-        </Text>
-        <Text style={styles.amountText}>{item.sz}</Text>
-      </View></TouchableOpacity>
+        <View style={[styles.orderRow, { marginVertical: 2 }]}>
+          <View
+            style={[
+              styles.bar,
+              isAsk ? styles.askBar : styles.bidBar,
+              { width: item.barWidth },
+            ]}
+          />
+          <Text style={[styles.priceText, isAsk ? styles.askText : styles.bidText]}>
+            {item.px}
+          </Text>
+          <Text style={styles.amountText}>{item.sz}</Text>
+        </View>
+      </TouchableOpacity>
     );
   };
 
@@ -163,7 +192,7 @@ const SpotOrderBook: React.FC<OrderBookProps> = ({
         />
         <View style={styles.midPriceContainer}>
           <Text style={styles.midPriceText}>
-            {midPrice !== null ? midPrice : "NaN"}
+            {midPrice !== null ? midPrice.toPrecision(6) : "NaN"}
           </Text>
         </View>
         <FlatList
