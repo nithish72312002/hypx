@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useActiveAccount } from "thirdweb/react";
-import { useSpotStore } from "@/store/useWalletStore";
+import { useSpotWallet } from "@/store/useSpotWallet";
 import WalletActionButtons from '@/components/buttons/WalletActionButtons';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
@@ -20,11 +20,14 @@ interface SpotTabProps {
 
 const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
   const account = useActiveAccount();
-  const { balances, totalValue, totalPnl, isLoading, error, setAddress } = useSpotStore();
+  const { balances, totalValue, totalPnl, isLoading, error, subscribeToWebSocket } = useSpotWallet();
 
   useEffect(() => {
-    setAddress(account?.address);
-  }, [account?.address, setAddress]);
+    const unsubscribe = subscribeToWebSocket();
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const onUpdateRef = useRef(onUpdate);
   

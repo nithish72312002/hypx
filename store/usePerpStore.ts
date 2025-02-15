@@ -1,5 +1,6 @@
-import {create} from "zustand";
+import { create } from "zustand";
 import WebSocketManager from "@/api/WebSocketManager";
+import { useWebData2Store } from "./useWebData2Store";
 
 interface PerpTokenData {
   name: string;
@@ -14,15 +15,16 @@ interface PerpStore {
   tokens: PerpTokenData[];
   isLoading: boolean;
   setTokens: (tokens: PerpTokenData[]) => void;
-  subscribeToWebSocket: () => void;
+  subscribeToWebSocket: () => () => void;
 }
 
 export const usePerpStore = create<PerpStore>((set) => {
-  const wsManager = WebSocketManager.getInstance();
-
-  const listener = (data: any) => {
+  const processWebData2 = (data: any) => {
     try {
       const { meta, assetCtxs } = data;
+      if (!meta?.universe || !assetCtxs) {
+        return;
+      }
 
       const formattedTokens = meta.universe
         .map((token: any, index: number) => {
@@ -44,11 +46,11 @@ export const usePerpStore = create<PerpStore>((set) => {
             usdvolume
           };
         })
-        .filter((token: PerpTokenData) => token.volume > 0); // Exclude zero-volume tokens
+        .filter((token: PerpTokenData) => token.volume > 0);
 
       set({ tokens: formattedTokens, isLoading: false });
     } catch (err) {
-      console.error("Error processing WebSocket data:", err);
+      set({ isLoading: false });
     }
   };
 
@@ -57,8 +59,19 @@ export const usePerpStore = create<PerpStore>((set) => {
     isLoading: true,
     setTokens: (tokens) => set({ tokens }),
     subscribeToWebSocket: () => {
-      wsManager.addListener("webData2", listener);
-      return () => wsManager.removeListener("webData2", listener);
+      const webData2Store = useWebData2Store.getState();
+      const unsubscribe = webData2Store.subscribeToWebSocket();
+      
+      const unsubscribeStore = useWebData2Store.subscribe((state) => {
+        if (state.rawData) {
+          processWebData2(state.rawData);
+        }
+      });
+
+      return () => {
+        unsubscribe();
+        unsubscribeStore();
+      };
     },
   };
 });

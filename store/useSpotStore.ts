@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import WebSocketManager from "@/api/WebSocketManager";
 import axios from "axios";
+import { useWebData2Store } from "./useWebData2Store";
 
 interface SpotTokenData {
   id: string;
@@ -25,13 +26,10 @@ interface SpotStore {
 // Cache for token mapping to avoid repeated API calls
 let tokenMappingCache: { [key: string]: string } | null = null;
 let isFetchingMapping = false;
+let pendingData: any = null;
 
 export const useSpotStore = create<SpotStore>((set, get) => {
-  const wsManager = WebSocketManager.getInstance();
-  let wsUnsubscribe: (() => void) | null = null;
-
   const parseTokenMapping = (apiResponse: any) => {
-    console.log("[SpotStore] Parsing token mapping from API response");
     const mapping: { [key: string]: string } = {};
     const tokensArray = apiResponse[0]?.tokens || [];
     const universeArray = apiResponse[0]?.universe || [];
@@ -50,14 +48,18 @@ export const useSpotStore = create<SpotStore>((set, get) => {
     return mapping;
   };
 
-  const listener = (data: any) => {
+  const processWebData2 = (data: any) => {
     try {
       const { spotAssetCtxs } = data;
-      if (!spotAssetCtxs || !Array.isArray(spotAssetCtxs)) return;
+      if (!spotAssetCtxs || !Array.isArray(spotAssetCtxs)) {
+        return;
+      }
 
-      // Use cached token mapping
       const tokenMapping = get().tokenMapping;
-      if (Object.keys(tokenMapping).length === 0) return;
+      if (Object.keys(tokenMapping).length === 0) {
+        pendingData = data;
+        return;
+      }
 
       const formattedTokens = spotAssetCtxs
         .map((ctx: any) => {
@@ -92,33 +94,35 @@ export const useSpotStore = create<SpotStore>((set, get) => {
 
       set({ tokens: formattedTokens, isLoading: false });
     } catch (err) {
-      console.error("[SpotStore] Error processing WebSocket data:", err);
+      console.error("[SpotStore] Error processing data:", err);
       set({ isLoading: false });
     }
   };
 
   const fetchTokenMapping = async () => {
-    // Return if we already have the mapping or if a fetch is in progress
     if (tokenMappingCache || isFetchingMapping) {
       if (tokenMappingCache) {
         set({ tokenMapping: tokenMappingCache });
+        if (pendingData) {
+          processWebData2(pendingData);
+          pendingData = null;
+        }
       }
       return;
     }
 
-    isFetchingMapping = true;
     try {
+      isFetchingMapping = true;
       const response = await axios.post("https://api.hyperliquid-testnet.xyz/info", {
-        type: "spotMetaAndAssetCtxs",
+        type: "spotMetaAndAssetCtxs"
       });
-
       const mapping = parseTokenMapping(response.data);
-      tokenMappingCache = mapping; // Cache the mapping
+      tokenMappingCache = mapping;
       set({ tokenMapping: mapping });
-
-      // Connect to WebSocket after we have the mapping
-      if (!wsUnsubscribe) {
-        wsUnsubscribe = subscribeToWebSocket();
+      
+      if (pendingData) {
+        processWebData2(pendingData);
+        pendingData = null;
       }
     } catch (err) {
       console.error("[SpotStore] Error fetching token mapping:", err);
@@ -128,14 +132,6 @@ export const useSpotStore = create<SpotStore>((set, get) => {
     }
   };
 
-  const subscribeToWebSocket = () => {
-    wsManager.addListener("webData2", listener);
-    return () => {
-      wsManager.removeListener("webData2", listener);
-      wsUnsubscribe = null;
-    };
-  };
-
   return {
     tokens: [],
     isLoading: true,
@@ -143,24 +139,18 @@ export const useSpotStore = create<SpotStore>((set, get) => {
     setTokens: (tokens) => set({ tokens }),
     fetchTokenMapping,
     subscribeToWebSocket: () => {
-      // If we already have a subscription, return its cleanup function
-      if (wsUnsubscribe) {
-        return wsUnsubscribe;
-      }
+      const webData2Store = useWebData2Store.getState();
+      const unsubscribe = webData2Store.subscribeToWebSocket();
       
-      // If we have cached token mapping, use it and subscribe
-      if (tokenMappingCache) {
-        set({ tokenMapping: tokenMappingCache });
-        wsUnsubscribe = subscribeToWebSocket();
-        return wsUnsubscribe;
-      }
-      
-      // Otherwise, fetch token mapping which will handle the subscription
-      fetchTokenMapping();
-      return () => {
-        if (wsUnsubscribe) {
-          wsUnsubscribe();
+      const unsubscribeStore = useWebData2Store.subscribe((state) => {
+        if (state.rawData) {
+          processWebData2(state.rawData);
         }
+      });
+
+      return () => {
+        unsubscribe();
+        unsubscribeStore();
       };
     },
   };

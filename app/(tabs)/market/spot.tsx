@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -16,18 +16,9 @@ interface SortConfig {
 }
 
 const SpotInfoPage: React.FC = () => {
-  const { tokens, isLoading, subscribeToWebSocket, fetchTokenMapping, tokenMapping } = useSpotStore();
+  const { tokens, isLoading, tokenMapping } = useSpotStore();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
   const router = useRouter();
-
-  useEffect(() => {
-    fetchTokenMapping();
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = subscribeToWebSocket();
-    return () => unsubscribe();
-  }, []);
 
   const handleNavigateToDetails = (id: string) => {
     const encodedId = encodeURIComponent(id);
@@ -103,22 +94,22 @@ const SpotInfoPage: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <TouchableOpacity 
-          style={[styles.nameColumn]} 
+          style={[styles.headerText, styles.nameColumn]} 
           onPress={() => handleSort('name')}
         >
-          <Text style={styles.headerText}>{`Name / Vol${getSortIcon('name')}`}</Text>
+          <Text style={[styles.headerText, {textAlign: 'left'}]}>{`Name / Vol${getSortIcon('name')}`}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.priceColumn]} 
+          style={[styles.headerText, styles.priceColumn]} 
           onPress={() => handleSort('price')}
         >
-          <Text style={styles.headerText}>{`Last Price${getSortIcon('price')}`}</Text>
+          <Text style={[styles.headerText, {textAlign: 'right'}]}>{`Last Price${getSortIcon('price')}`}</Text>
         </TouchableOpacity>
         <TouchableOpacity 
-          style={[styles.changeColumn]} 
+          style={[styles.headerText, styles.changeColumn]} 
           onPress={() => handleSort('change')}
         >
-          <Text style={styles.headerText}>{`24h Chg%${getSortIcon('change')}`}</Text>
+          <Text style={[styles.headerText, {textAlign: 'right'}]}>{`24h Chg%${getSortIcon('change')}`}</Text>
         </TouchableOpacity>
       </View>
       <FlatList
@@ -135,8 +126,6 @@ const SpotInfoPage: React.FC = () => {
     </View>
   );
 };
-
-export default SpotInfoPage;
 
 const styles = StyleSheet.create({
   container: {
@@ -221,3 +210,5 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 });
+
+export default SpotInfoPage;

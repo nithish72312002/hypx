@@ -4,6 +4,8 @@ import { useActiveAccount } from "thirdweb/react";
 import { useApprovalStore } from "@/store/useApprovalStore";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { useSpotStore } from "@/store/useSpotStore";
+import { useWebData2Store } from "@/store/useWebData2Store";
+import { usePerpStore } from "@/store/usePerpStore";
 
 interface AppInitializerContextType {
   // Empty interface since we removed needsDeposit
@@ -23,12 +25,20 @@ export default function AppInitializer({ children }: { children?: React.ReactNod
   const account = useActiveAccount();
   const { queryUserRole } = useApprovalStore();
   const { wallet } = useAgentWallet();
-  const { subscribeToWebSocket, fetchTokenMapping } = useSpotStore();
+  const { subscribeToWebSocket: subscribeToSpotWebSocket, fetchTokenMapping } = useSpotStore();
+  const { subscribeToWebSocket: subscribeToPerpWebSocket } = usePerpStore();
+  const webData2Store = useWebData2Store();
 
   useEffect(() => {
+    // Initialize WebSocket connection through WebData2Store
+    const unsubscribeWebData2 = webData2Store.subscribeToWebSocket();
+
     // Initialize spot store
     fetchTokenMapping();
-    subscribeToWebSocket();
+    const unsubscribeSpot = subscribeToSpotWebSocket();
+
+    // Initialize perp store
+    const unsubscribePerp = subscribeToPerpWebSocket();
 
     if (account?.address) {
       WebSocketManager.getInstance().updateUserAddress(account.address);
@@ -39,6 +49,13 @@ export default function AppInitializer({ children }: { children?: React.ReactNod
     } else {
       WebSocketManager.getInstance().updateUserAddress("0x0000000000000000000000000000000000000000");
     }
+
+    // Cleanup function
+    return () => {
+      unsubscribeWebData2();
+      unsubscribeSpot();
+      unsubscribePerp();
+    };
   }, [account?.address, wallet]);
 
   const contextValue = {};

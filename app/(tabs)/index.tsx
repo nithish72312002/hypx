@@ -69,14 +69,7 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const [activeTab, setActiveTab] = React.useState(0);
   const pagerRef = React.useRef(null);
-  const { tokens, isLoading, subscribeToWebSocket } = usePerpStore();
-
-  useEffect(() => {
-    const unsubscribe = subscribeToWebSocket();
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+  const { tokens, isLoading } = usePerpStore();
 
   const handleNavigatemarket = (route) => {
     router.push(route);
