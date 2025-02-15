@@ -1,5 +1,5 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, BackHandler } from "react-native";
-import { SocialIcon } from "thirdweb/react";
+import { SocialIcon, useActiveAccount } from "thirdweb/react";
 import { countryList, CountryData } from "@/assets/countryData";
 import BottomSheet, { BottomSheetFlatList } from '@gorhom/bottom-sheet';
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
@@ -19,10 +19,16 @@ export default function LoginPage() {
   const [selectedCountry, setSelectedCountry] = useState<CountryData>(countryList[0]);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredCountries, setFilteredCountries] = useState<CountryData[]>(countryList);
-  
+  const account = useActiveAccount();
+  const address = account?.address;
   const bottomSheetRef = useRef<BottomSheet>(null);
   const snapPoints = useMemo(() => ['60%'], []);
 
+  useEffect(() => {
+    if (address) {
+      router.replace("/(tabs)");
+    }
+  }, [address]);
   const handleSheetChanges = useCallback((index: number) => {
     if (index === -1) {
       setSearchQuery('');

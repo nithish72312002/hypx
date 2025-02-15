@@ -21,8 +21,11 @@ const SpotInfoPage: React.FC = () => {
   const router = useRouter();
 
   const handleNavigateToDetails = (id: string) => {
-    const encodedId = encodeURIComponent(id);
-    router.push(`/details/${encodedId}`);
+    const symbol = id;
+    router.push({
+      pathname: "/details",
+      params: { symbol }
+    });
   };
 
   const sortData = (data: typeof tokens) => {

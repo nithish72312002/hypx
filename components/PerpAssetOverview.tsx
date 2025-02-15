@@ -99,7 +99,7 @@ const PerpAssetOverview: React.FC<PerpAssetOverviewProps> = ({ symbol }) => {
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Funding</Text>
-                <Text style={styles.statValue}>{parseFloat(data.funding)}%</Text>
+                <Text style={styles.statValue}>{parseFloat(data.funding).toFixed(4)}%</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>24h Vol({symbol})</Text>

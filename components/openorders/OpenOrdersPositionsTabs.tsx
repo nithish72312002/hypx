@@ -207,6 +207,8 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
     }
   };
 
+ 
+
   const renderOrders = () => (
     <View style={styles.ordersContainer}>
       <View style={styles.ordersHeader}>

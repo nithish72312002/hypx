@@ -33,7 +33,6 @@ export const useSpotWallet = create<SpotState>((set, get) => {
       const spotAssetCtxs = data?.spotAssetCtxs || [];
 
       if (!spotState) {
-        console.log("[SpotWallet] No spotState found in data");
         set({ balances: [], totalValue: 0, totalPnl: 0, isLoading: false });
         return;
       }

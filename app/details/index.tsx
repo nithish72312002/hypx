@@ -10,8 +10,6 @@ import SpotAssetOverview from "@/components/SpotAssetOverview";
 import TradesList from "@/components/TradesList";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 
-
-
 const DetailsPage: React.FC = () => {
   const { symbol } = useLocalSearchParams();
   const navigation = useNavigation();
@@ -114,7 +112,7 @@ const DetailsPage: React.FC = () => {
           onPress={() => {
             if (isSpot) {
               router.push({
-                pathname: "/(tabs)/trade/[symbol]",
+                pathname: "/(tabs)/trade",
                 params: { 
                   symbol: symbol?.toString() || '',
                   sdkSymbol: sdkSymbol || ''
@@ -122,7 +120,7 @@ const DetailsPage: React.FC = () => {
               });
             } else {
               router.push({
-                pathname: "/(tabs)/futures/[symbol]",
+                pathname: "/(tabs)/futures",
                 params: { 
                   symbol: symbol?.toString() || ''
                 }

@@ -76,8 +76,10 @@ const HomeScreen = () => {
   };
 
   const handleNavigateToDetails = (symbol: string) => {
-    const encodedSymbol = encodeURIComponent(symbol);
-    router.push(`/details/${encodedSymbol}`);
+    router.push({
+      pathname: "/details",
+      params: { symbol }
+    });
   };
 
 

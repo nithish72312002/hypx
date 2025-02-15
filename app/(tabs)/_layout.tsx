@@ -52,7 +52,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="trade/[symbol]"
+          name="trade/index"
           options={{
             title: "Trade",
             tabBarIcon: ({ color }) => (
@@ -61,7 +61,7 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="futures/[symbol]"
+          name="futures/index"
           options={{
             title: "Futures",
             tabBarIcon: ({ color }) => (
