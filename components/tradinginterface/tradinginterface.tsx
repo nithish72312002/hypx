@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, Modal } from 'react-native';
+import { View, Text, TextInput, Alert, TouchableOpacity, StyleSheet, Dimensions, Modal } from 'react-native';
 import { useActiveAccount } from 'thirdweb/react';
 import WebSocketManager from '@/api/WebSocketManager';
 import { useHyperliquid } from '@/context/HyperliquidContext';
@@ -9,7 +9,6 @@ import { useAgentWallet } from '@/hooks/useAgentWallet';
 import { useApprovalStore } from '@/store/useApprovalStore';
 import axios from 'axios';
 import { AntDesign } from '@expo/vector-icons';
-
 const { width } = Dimensions.get('window');
 
 interface Leverage {
@@ -59,7 +58,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const { approveAgent } = useApproveAgent();
   const { approvalCompleted, setApprovalCompleted } = useApprovalStore();
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
-
+const [loading, setLoading] = useState(false);
   const handleEstablishConnection = async () => {
     if (walletLoading || isConnecting) {
       return;
@@ -214,7 +213,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
     }
   }, [orderType, midPrice, isBuy, setPrice]);
 
-  // Additional listener for midPrice updates if needed
+  // Additional listener for midPrice updates if needed 
  
 
   const placeOrder = async () => {
@@ -342,6 +341,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
 };
 
 
+ 
 
   const renderOrderButton = () => {
     if (!account?.address) {

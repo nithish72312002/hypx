@@ -13,12 +13,14 @@ import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from "@gorhom/
 import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
+import { useRouter } from 'expo-router';
 
 interface DepositButtonProps {
   onPress?: () => void;
 }
 
 export const DepositButton: React.FC<DepositButtonProps> = ({ onPress }) => {
+  const router = useRouter();
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isQRModalVisible, setIsQRModalVisible] = useState(false);
@@ -66,13 +68,12 @@ export const DepositButton: React.FC<DepositButtonProps> = ({ onPress }) => {
 
   const handleOnChainDeposit = () => {
     bottomSheetModalRef.current?.dismiss();
-    setIsModalVisible(true);
-    refetchBalance();
+    router.push('/deposit?tab=onchain');
   };
 
   const handleDepositFromDifferentAddress = () => {
     bottomSheetModalRef.current?.dismiss();
-    setIsQRModalVisible(true);
+    router.push('/deposit?tab=qr');
   };
 
   const handleCopyAddress = async () => {

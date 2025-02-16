@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import { getPrivateKey, savePrivateKey } from "@/utils/storage";
 
 export function useAgentWallet() {
-  const [wallet, setWallet] = useState<ethers.Wallet | null>(null);
+  const [wallet, setWallet] = useState<ethers.HDNodeWallet | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

@@ -12,6 +12,8 @@ import axios from "axios";
 import WebSocketManager from "@/api/WebSocketManager";
 import { useHyperliquid } from "@/context/HyperliquidContext";
 import { useActiveAccount } from "thirdweb/react";
+import { OrderRequest, placeOrderl1 } from "@/utils/Signing";
+import { useAgentWallet } from "@/hooks/useAgentWallet";
 
 interface Order {
   coin: string;
@@ -161,6 +163,8 @@ const SpotTradeOpenOrdersHoldings: React.FC<TradingInterfaceProps> = ({ symbol }
       setCancelAllStatus(`Failed to cancel all orders: ${error.message ?? "Unknown error"}`);
     }
   };
+
+  
 
   // Render open orders using tokenMapping to resolve names
   const renderOrders = () => (

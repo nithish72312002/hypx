@@ -4,6 +4,8 @@ import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import WebSocketManager from "@/api/WebSocketManager";
 import { useHyperliquid } from "@/context/HyperliquidContext";
 import { useActiveAccount } from "thirdweb/react";
+import { OrderRequest, placeOrderl1 } from "@/utils/Signing";
+import { useAgentWallet } from "@/hooks/useAgentWallet";
 
 interface Order {
   coin: string;
@@ -52,6 +54,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
   const [metaUniverse, setMetaUniverse] = useState<any[]>([]);
   const [closeallStatus, setcloseallStatus] = useState<string | null>(null);
   const [closeStatus, setcloseStatus] = useState<string | null>(null);
+  const {wallet }= useAgentWallet()
 
   const [openOrders, setOpenOrders] = useState<Order[]>([]);
   const [positions, setPositions] = useState<Position[]>([]);
@@ -207,6 +210,34 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
     }
   };
 
+  const handlecloseallOrder = async () => {
+    if (!wallet) {
+      console.error("Wallet is not initialized");
+      return;
+    }
+
+    const orderRequest: OrderRequest = {
+      asset: 0, // For example, BTC
+      is_buy: false,
+      sz: 0.51,
+      limit_px: 200,
+      reduce_only: false,
+      order_type: {
+        limit: { tif: "FrontendMarket" },
+      },
+    };
+
+    try {
+      const nonce = Date.now();
+      const response = await placeOrderl1(orderRequest, wallet, nonce);
+      console.log("Order result:", response);
+    } catch (error: any) {
+      console.error("Error placing order:", error.message);
+      if (error.response?.data) {
+        console.error("API Error Details:", error.response.data);
+      }
+    }
+  };
  
 
   const renderOrders = () => (
@@ -525,6 +556,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#1E1F26",
+  },
+  checkboxInner: {
+    width: 8,
+    height: 8,
+    backgroundColor: "#00C087",
+    borderRadius: 2,
   },
   filterText: {
     color: "#8E8E93",

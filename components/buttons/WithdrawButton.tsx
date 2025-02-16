@@ -13,6 +13,18 @@ interface WithdrawButtonProps {
   onPress?: () => void;
 }
 
+
+interface BTCAddressResponse {
+  address: string;
+  signatures: {
+    'field-node': string;
+    'hl-node-testnet': string;
+    'node-1': string;
+  };
+  status: string;
+  error?: string;
+}
+
 export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -23,8 +35,15 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
   const MIN_WITHDRAW = 2;
   const router = useRouter();
 
-  const hyberliquiddisabled = true;
-
+  const [balances, setBalances] = useState([]);
+  const [selectedToken, setSelectedToken] = useState('USDC');
+  const [isTokenDropdownOpen, setIsTokenDropdownOpen] = useState(false);
+  const [selectedChain, setSelectedChain] = useState<'arbitrum' | 'hyperliquid' | 'bitcoin'>('arbitrum');
+  const [isChainDropdownOpen, setIsChainDropdownOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [btcAddress, setBtcAddress] = useState('');
+  const hyberliquiddisabled = false;
+  const [withdrawAddress, setwithdrawAddress] = useState('');
   const renderBackdrop = useCallback(
     (props: any) => (
       <BottomSheetBackdrop
@@ -53,7 +72,9 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
   };
 
   const handleMax = () => {
-    setAmount(withdrawableBalance);
+      const formattedBalance = Number(withdrawableBalance).toString();
+      setAmount(formattedBalance);
+    
   };
 
   const handleAmountChange = (text: string) => {
@@ -62,16 +83,16 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
     }
   };
 
+
   const fetchWithdrawableBalance = async () => {
     if (!sdk || !account?.address) return;
 
     try {
-      const state = await sdk.info.perpetuals.getClearinghouseState(account.address);
-      if (state?.withdrawable) {
-        setWithdrawableBalance(state.withdrawable.toString());
-      }
+      const response = await sdk.info.perpetuals.getClearinghouseState(account.address);
+      setWithdrawableBalance(response?.withdrawable || '0');
     } catch (error) {
       console.error('Error getting clearinghouse state:', error);
+      setWithdrawableBalance('0');
     }
   };
 
@@ -112,16 +133,10 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
     }
   };
 
-  const [balances, setBalances] = useState([]);
-  const [selectedToken, setSelectedToken] = useState('USDC');
-  const [isTokenDropdownOpen, setIsTokenDropdownOpen] = useState(false);
-  const [selectedChain, setSelectedChain] = useState('arbitrum');
-  const [isChainDropdownOpen, setIsChainDropdownOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
   // Handle chain switching
   useEffect(() => {
-    if (selectedChain === 'hyperliquid') {
+    if (selectedChain === 'hyperliquid' || selectedChain === 'bitcoin') {
       getSpotClearinghouseState();
     } else {
       setBalances([]);
@@ -130,17 +145,23 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
     }
   }, [selectedChain]);
 
-  // Update withdrawable balance when token changes in Hyperliquid
+  // Update withdrawable balance when token changes in Hyperliquid or Bitcoin
   useEffect(() => {
-    if (selectedChain === 'hyperliquid' && balances.length > 0) {
+    if ((selectedChain === 'hyperliquid' || selectedChain === 'bitcoin') && balances.length > 0) {
       console.log('Updating selected token from balances:', {
         selectedToken,
         balances,
-        selectedBalance: balances.find(b => b.coin === selectedToken)
+        selectedChain
       });
-      const selectedBalance = balances.find(b => b.coin === selectedToken);
-      if (selectedBalance) {
-        setWithdrawableBalance(selectedBalance.withdrawable);
+
+      if (selectedChain === 'bitcoin') {
+        const ubtcBalance = balances.find(balance => balance.coin === 'UNIT');
+        setWithdrawableBalance(ubtcBalance ? ubtcBalance.total : '0.0');
+      } else {
+        const selectedBalance = balances.find(balance => balance.coin === selectedToken);
+        if (selectedBalance) {
+          setWithdrawableBalance(selectedBalance.total);
+        }
       }
     }
   }, [selectedToken, selectedChain, balances]);
@@ -252,16 +273,19 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
 
       if (response.data?.status === 'ok') {
         showToast('Transaction completed', 'success');
+        // Wait for the toast animation to complete before closing modal and refreshing
         setTimeout(() => {
+          hideToast();
           setIsModalVisible(false);
           fetchWithdrawableBalance();
-        }, 3000);
+        }, 4000); // Increased from 3000 to 4000 to ensure toast is visible
       } else {
         throw new Error('Withdrawal failed: ' + JSON.stringify(response.data));
       }
     } catch (error) {
       console.error("Withdrawal Error:", error);
       showToast('Failed to process withdrawal', 'loading');
+      setTimeout(hideToast, 4000);
     } finally {
       setIsLoading(false);
     }
@@ -396,6 +420,128 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
     }
   };  
 
+const isMainnet = false;
+  const ubtcaddress = isMainnet
+  ? "UBTC:0x8f254b963e8468305d409b33aa137c67"  // Mainnet Bridge
+  : "UNIT:0x5314ecc85ee6059955409e0da8d2bd31";
+
+  const btcwithdraw = async () => {
+    try {
+      setIsLoading(true);
+
+      if (!btcAddress) {
+        showToast('Please enter BTC address', 'loading');
+        setIsLoading(false);
+        return;
+      }
+
+      if (!amount || amount === '0' || amount === '') {
+        showToast('Please enter an amount', 'loading');
+        setIsLoading(false);
+        return;
+      }
+
+      // First get the withdrawal address from API
+      const response = await fetch(`https://api.hyperunit-testnet.xyz/gen/hyperliquid/bitcoin/btc/${btcAddress}`);
+      const data: BTCAddressResponse = await response.json();
+      
+      if (data.error || !data.address || data.status !== 'OK') {
+        console.error('Error from API:', data.error || 'Invalid response');
+        showToast(data.error || 'Failed to get withdrawal address', 'loading');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('BTC withdraw address response:', data);
+      
+      // Then proceed with EIP712 signing
+      const currentTimestamp = Date.now();
+      
+      const domain = {
+        name: "HyperliquidSignTransaction",
+        version: "1",
+        chainId: 421614,
+        verifyingContract: "0x0000000000000000000000000000000000000000"
+      };
+
+      const message = {
+        destination: data.address,
+        token: ubtcaddress,
+        amount: amount,
+        time: currentTimestamp,
+        type: "spotSend",
+        signatureChainId: "0x66eee",
+        hyperliquidChain: "Testnet"
+      };
+
+      const types = {
+        EIP712Domain: [
+          { name: "name", type: "string" },
+          { name: "version", type: "string" },
+          { name: "chainId", type: "uint256" },
+          { name: "verifyingContract", type: "address" }
+        ],
+        "HyperliquidTransaction:SpotSend": [
+          { name: "hyperliquidChain", type: "string" },
+          { name: "destination", type: "string" },
+          { name: "token", type: "string" },
+          { name: "amount", type: "string" },
+          { name: "time", type: "uint64" }
+        ]
+      };
+
+      console.log('Signing withdrawal with:', { domain, message, types });
+      
+      if (!account) {
+        showToast('Please connect your wallet', 'loading');
+        setIsLoading(false);
+        return;
+      }
+
+      const signature = await account.signTypedData({
+        domain,
+        message,
+        primaryType: "HyperliquidTransaction:SpotSend",
+        types,
+      });
+
+      const { v, r, s } = ethers.Signature.from(signature);
+
+      const apiPayload = {
+        action: message,
+        nonce: currentTimestamp,
+        signature: { r, s, v },
+      };
+
+      // Finally submit the withdrawal
+      const withdrawResponse = await axios.post(
+        "https://api.hyperliquid-testnet.xyz/exchange",
+        apiPayload,
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+
+      if (withdrawResponse.data?.status === 'ok') {
+        showToast('Transaction completed', 'success');
+        setTimeout(() => {
+          setIsModalVisible(false);
+          setBtcAddress('');
+          setAmount('');
+          getSpotClearinghouseState();
+        }, 5000);
+      } else {
+        throw new Error('Withdrawal failed: ' + JSON.stringify(withdrawResponse.data));
+      }
+
+    } catch (error) {
+      console.error("BTC Withdrawal Error:", error);
+      showToast('Failed to process withdrawal', 'loading');
+    } finally {
+      setIsLoading(false);
+    }
+  };  
+
   return (
     <>
       <TouchableOpacity
@@ -481,7 +627,8 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
                     onPress={() => setIsChainDropdownOpen(!isChainDropdownOpen)}
                   >
                     <Text style={styles.selectorText}>
-                      {selectedChain === 'hyperliquid' ? 'Hyperliquid' : 'Arbitrum'}
+                      {selectedChain === 'hyperliquid' ? 'Hyperliquid' : 
+                       selectedChain === 'arbitrum' ? 'Arbitrum' : 'Bitcoin'}
                     </Text>
                     <Text style={styles.arrowIcon}>▼</Text>
                   </TouchableOpacity>
@@ -520,6 +667,21 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
                           ]}>Hyperliquid</Text>
                         </TouchableOpacity>
                       )}
+                      <TouchableOpacity 
+                        style={[
+                          styles.dropdownItem,
+                          selectedChain === 'bitcoin' && styles.selectedDropdownItem
+                        ]}
+                        onPress={() => {
+                          setSelectedChain('bitcoin');
+                          setIsChainDropdownOpen(false);
+                        }}
+                      >
+                        <Text style={[
+                          styles.dropdownText,
+                          selectedChain === 'bitcoin' && styles.selectedDropdownText
+                        ]}>Bitcoin</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
@@ -583,6 +745,34 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
                 </View>
               )}
 
+              {/* Token selector for Bitcoin */}
+              {selectedChain === 'bitcoin' && (
+                <>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Token</Text>
+                    <View style={styles.tokenDropdownContainer}>
+                      <TouchableOpacity style={styles.selector}>
+                        <Text style={styles.selectorText}>UBTC</Text>
+                        <Text style={styles.arrowIcon}>▼</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>BTC Address</Text>
+                    <View style={styles.amountInputContainer}>
+                      <TextInput
+                        style={styles.amountInput}
+                        placeholder="Enter BTC address"
+                        placeholderTextColor="#666"
+                        value={btcAddress}
+                        onChangeText={setBtcAddress}
+                      />
+                    </View>
+                  </View>
+                </>
+              )}
+
               <View style={styles.inputGroup}>
                 <View style={styles.amountInputContainer}>
                   <TextInput
@@ -604,7 +794,7 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
                 </View>
                 <View style={styles.balanceContainer}>
                   <Text style={styles.balanceText}>
-                    Withdrawable Balance: {selectedChain === 'hyperliquid' ? withdrawableBalance : withdrawableBalance} {selectedToken}
+                    Withdrawable Balance: {withdrawableBalance} {selectedChain === 'bitcoin' ? 'UBTC' : selectedToken}
                   </Text>
                 </View>
               </View>
@@ -613,19 +803,21 @@ export const WithdrawButton: React.FC<WithdrawButtonProps> = ({ onPress }) => {
                 style={[
                   styles.modalButton,
                   ((!amount || amount === '0' || amount === '') || 
-                   (parseFloat(amount) < MIN_WITHDRAW) ||
+                   (selectedChain === 'arbitrum' && parseFloat(amount) < MIN_WITHDRAW) ||
+                   (selectedChain === 'bitcoin' && !btcAddress) ||
                    isLoading) && 
                   styles.modalButtonDisabled
                 ]}
-                onPress={selectedChain === 'hyperliquid' ? spotwithdraw : withdraw3}
+                onPress={selectedChain === 'hyperliquid' ? spotwithdraw : selectedChain === 'bitcoin' ? btcwithdraw : withdraw3}
                 disabled={(!amount || amount === '0' || amount === '') || 
-                         (parseFloat(amount) < MIN_WITHDRAW) ||
+                         (selectedChain === 'arbitrum' && parseFloat(amount) < MIN_WITHDRAW) ||
+                         (selectedChain === 'bitcoin' && !btcAddress && parseFloat(amount) > 0.002) ||
                          isLoading}
               >
                 <Text style={styles.modalButtonText}>
                   {isLoading ? 'Processing...' : 
                    !amount || amount === '0' || amount === '' ? 'Enter amount' :
-                   parseFloat(amount) < MIN_WITHDRAW ? `Minimum withdrawal ${MIN_WITHDRAW} USDC` :
+                   (selectedChain === 'arbitrum' && parseFloat(amount) < MIN_WITHDRAW) ? `Minimum withdrawal ${MIN_WITHDRAW} USDC` :
                    'Withdraw'}
                 </Text>
               </TouchableOpacity>
