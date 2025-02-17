@@ -16,14 +16,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 
 interface BTCAddressResponse {
   address: string;
-  signatures: {
-    'field-node': string;
-    'hl-node-testnet': string;
-    'node-1': string;
-  };
+  signatures?: { [nodeId: string]: string };
   status: string;
   error?: string;
 }
+
 
 const DepositPage = () => {
   const router = useRouter();

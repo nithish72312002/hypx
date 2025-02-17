@@ -3,20 +3,21 @@ const GUARDIAN_NODES = [
     {
         nodeId: 'node-1',
         publicKey:
-            '04bab844e8620c4a1ec304df6284cd6fdffcde79b3330a7bffb1e4cecfee72d02a7c1f3a4415b253dc8d6ca2146db170e1617605cc8a4160f539890b8a24712152',
+            '04b3ed8e1e2eda3e15aa028b7b72c9fcf0eba23c73a3e4f561fe9199e3d209b1abf2d7c2490664db936ccba2e2c1b642c8a68e45ab1d3cb70db10996531b5891ee',
     },
     {
-        nodeId: 'hl-node-testnet',
+        nodeId: 'hl-node',
         publicKey:
-            '04502d20a0d8d8aaea9395eb46d50ad2d8278c1b3a3bcdc200d531253612be23f5f2e9709bf3a3a50d1447281fa81aca0bf2ac2a6a3cb8a12978381d73c24bb2d9',
+            '043e3d8e653e9f890dd7df7340b6b9093ea2a95a1a4bb1c31dbd14eb7a8955ef9f4aa4c1d416dc6b03d6d04867a23ca39f9aa9b516c4169939537cdcca820aa801',
     },
     {
         nodeId: 'field-node',
         publicKey:
-            '04e674a796ff01d6b74f4ee4079640729797538cdb4926ec333ce1bd18414ef7f22c1a142fd76dca120614045273f30338cd07d79bc99872c76151756aaec0f8e8',
+            '044c7ad4ad7beecc94d3e87e834d48d53921a77d23da12a653a0f376898041d736ae126b97cffd29f27d700515f2d40e509de92eb1741962a100b0d448f872dd7f',
     },
 ];
 const GUARDIAN_SIGNATURE_THRESHOLD = 2;
+
 
 // Types
 interface RawNode {
@@ -49,16 +50,10 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 /**
- * Hash a message using SHA-256
+ * Converts a proposal into a standardized payload format.
+ * Format: nodeId:destinationAddress-destinationChain-asset-address
  */
-async function hashMessage(message: Uint8Array): Promise<ArrayBuffer> {
-    return await crypto.subtle.digest('SHA-256', message);
-}
-
-/**
- * Converts a proposal into a standardized payload format and hashes it
- */
-async function proposalToHashedPayload(nodeId: string, proposal: Proposal): Promise<ArrayBuffer> {
+function proposalToPayload(nodeId: string, proposal: Proposal): Uint8Array {
     const payloadString = [
         nodeId,
         proposal.destinationAddress,
@@ -67,13 +62,12 @@ async function proposalToHashedPayload(nodeId: string, proposal: Proposal): Prom
         proposal.address
     ].join(':');
 
-    console.log(`Payload for ${nodeId}:`, payloadString);
-    const payloadBytes = new TextEncoder().encode(payloadString);
-    return await hashMessage(payloadBytes);
+    return new TextEncoder().encode(payloadString);
 }
 
 /**
  * Processes guardian nodes by converting their hex-encoded public keys into CryptoKey objects
+ * @throws Error if public key format is invalid or processing fails
  */
 async function processGuardianNodes(nodes: RawNode[]): Promise<ProcessedNode[]> {
     const processed: ProcessedNode[] = [];
@@ -81,7 +75,6 @@ async function processGuardianNodes(nodes: RawNode[]): Promise<ProcessedNode[]> 
     for (const node of nodes) {
         try {
             const publicKeyBytes = hexToBytes(node.publicKey);
-            console.log(`Processing node ${node.nodeId}, public key length:`, publicKeyBytes.length);
 
             // Validate public key format (uncompressed SEC1)
             if (publicKeyBytes.length !== 65 || publicKeyBytes[0] !== 0x04) {
@@ -91,16 +84,12 @@ async function processGuardianNodes(nodes: RawNode[]): Promise<ProcessedNode[]> 
             const publicKey = await crypto.subtle.importKey(
                 'raw',
                 publicKeyBytes,
-                { 
-                    name: 'ECDSA',
-                    namedCurve: 'P-256',
-                },
+                { name: 'ECDSA', namedCurve: 'P-256' },
                 true,
                 ['verify']
             );
 
             processed.push({ nodeId: node.nodeId, publicKey });
-            console.log(`Successfully processed node ${node.nodeId}`);
         } catch (error) {
             console.error(`Failed to process node ${node.nodeId}:`, error);
             throw new Error(`Node processing failed: ${error.message}`);
@@ -110,30 +99,30 @@ async function processGuardianNodes(nodes: RawNode[]): Promise<ProcessedNode[]> 
 }
 
 /**
- * Verifies a single signature
+ * Verifies a single signature against a message using WebCrypto API
  */
 async function verifySignature(
     publicKey: CryptoKey,
-    messageHash: ArrayBuffer,
+    message: Uint8Array,
     signature: string
 ): Promise<boolean> {
     try {
-        // Convert base64 signature to bytes
-        const sigBytes = Buffer.from(signature, 'base64');
-        console.log('Signature length:', sigBytes.length);
+        // Convert base64 signature to raw R||S format
+        const sigBytes = new Uint8Array(atob(signature).split('').map(c => c.charCodeAt(0)));
+        if (sigBytes.length !== 64) {
+            console.warn('Invalid signature length');
+            return false;
+        }
 
-        const result = await crypto.subtle.verify(
+        return await crypto.subtle.verify(
             {
                 name: 'ECDSA',
                 hash: { name: 'SHA-256' },
             },
             publicKey,
             sigBytes,
-            messageHash
+            message
         );
-
-        console.log('Signature verification result:', result);
-        return result;
     } catch (error) {
         console.error('Signature verification failed:', error);
         return false;
@@ -142,15 +131,15 @@ async function verifySignature(
 
 /**
  * Verifies deposit address signatures against a proposal
+ * @param signatures - Map of nodeId to signature
+ * @param proposal - Deposit proposal to verify
+ * @returns Object containing verification result and metadata
  */
 export async function verifyDepositAddressSignatures(
     signatures: { [nodeId: string]: string },
     proposal: Proposal
 ): Promise<VerificationResult> {
     try {
-        console.log('Starting verification with signatures:', signatures);
-        console.log('Proposal:', proposal);
-
         const processedNodes = await processGuardianNodes(GUARDIAN_NODES);
         let verifiedCount = 0;
         const errors: string[] = [];
@@ -158,36 +147,25 @@ export async function verifyDepositAddressSignatures(
         // Verify each node's signature
         await Promise.all(processedNodes.map(async (node) => {
             try {
-                const signature = signatures[node.nodeId];
-                if (!signature) {
-                    console.log(`No signature found for node ${node.nodeId}`);
-                    errors.push(`No signature found for node ${node.nodeId}`);
+                if (!signatures[node.nodeId]) {
                     return;
                 }
 
-                console.log(`Verifying signature for node ${node.nodeId}`);
-                const messageHash = await proposalToHashedPayload(node.nodeId, proposal);
-                if (await verifySignature(node.publicKey, messageHash, signature)) {
-                    console.log(`Signature verified for node ${node.nodeId}`);
+                const payload = proposalToPayload(node.nodeId, proposal);
+                if (await verifySignature(node.publicKey, payload, signatures[node.nodeId])) {
                     verifiedCount++;
-                } else {
-                    console.log(`Invalid signature from node ${node.nodeId}`);
-                    errors.push(`Invalid signature from node ${node.nodeId}`);
                 }
             } catch (error) {
-                console.error(`Verification failed for node ${node.nodeId}:`, error);
                 errors.push(`Verification failed for node ${node.nodeId}: ${error.message}`);
             }
         }));
 
-        console.log(`Verification complete. Verified count: ${verifiedCount}, Errors:`, errors);
         return {
             success: verifiedCount >= GUARDIAN_SIGNATURE_THRESHOLD,
             verifiedCount,
             errors: errors.length > 0 ? errors : undefined
         };
     } catch (error) {
-        console.error('Global verification error:', error);
         return {
             success: false,
             verifiedCount: 0,

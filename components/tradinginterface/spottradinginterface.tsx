@@ -10,6 +10,7 @@ import { useApprovalStore } from '@/store/useApprovalStore';
 import { Modal } from 'react-native';
 import axios from 'axios';
 import { AntDesign } from '@expo/vector-icons';
+import { usespotTradingStore } from '@/store/useTradingStore';
 
 const { width } = Dimensions.get('window');
 
@@ -27,19 +28,11 @@ interface SpotState {
 
 interface TradingInterfaceProps {
   symbol: string;
-  price?: string;
-  setPrice?: (price: string) => void;
-  orderType: 'Limit' | 'Market';
-  onOrderTypeChange: (type: 'Limit' | 'Market') => void;
   sdksymbol: string;
 }
 
 const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({ 
-  symbol, 
-  price, 
-  setPrice,
-  orderType,
-  onOrderTypeChange,
+  symbol,
   sdksymbol
 }) => {  
   
@@ -60,7 +53,7 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
   const { approvalCompleted, setApprovalCompleted } = useApprovalStore();  
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
-
+  const { orderType, setOrderType , price, setPrice } = usespotTradingStore();
   const handleEstablishConnection = async () => {
     if (walletLoading || isConnecting) {
       return;
@@ -469,7 +462,7 @@ const renderOrderButton = () => {
       <View style={styles.orderTypeContainer}>
         <TouchableOpacity
           style={[styles.orderTypeButton, styles.activeOrderType]}
-          onPress={() => onOrderTypeChange(orderType === 'Limit' ? 'Market' : 'Limit')}
+          onPress={() => setOrderType(orderType === 'Limit' ? 'Market' : 'Limit')}
         >
           <Text style={styles.orderTypeText}>{orderType}</Text>
         </TouchableOpacity>

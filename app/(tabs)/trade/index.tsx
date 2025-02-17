@@ -36,8 +36,7 @@ const SpotPage: React.FC = () => {
   const [sdkSymbol, setSdkSymbol] = useState(
     initialSdkSymbol?.toString() || selectedSymbol.split('/')[0]
   );
-  const [price, setPrice] = useState("");
-  const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
+
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -124,18 +123,14 @@ const SpotPage: React.FC = () => {
             <SpotOrderBook
               // Pass the symbol (id) to SDK components
               symbol={selectedSymbol || "@1"} 
-              tradeType={orderType}
-              onPriceSelect={(selectedPrice) => setPrice(selectedPrice.toString())}
+            
             />
           </View>
           <View style={styles.tradingInterface}>
             <SpotTradingInterface
               sdksymbol={sdkSymbol}
               symbol={selectedSymbol || "@1"}
-              price={price}
-              setPrice={setPrice}
-              orderType={orderType}
-              onOrderTypeChange={setOrderType}
+            
             />
           </View>
         </View>

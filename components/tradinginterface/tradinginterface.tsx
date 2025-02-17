@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Alert, TouchableOpacity, StyleSheet, Dimensions, Modal } from 'react-native';
 import { useActiveAccount } from 'thirdweb/react';
 import WebSocketManager from '@/api/WebSocketManager';
 import { useHyperliquid } from '@/context/HyperliquidContext';
 import { useApproveAgent } from '@/hooks/useApproveAgent';
-import { router } from 'expo-router';
 import { useAgentWallet } from '@/hooks/useAgentWallet';
 import { useApprovalStore } from '@/store/useApprovalStore';
 import axios from 'axios';
-import { AntDesign } from '@expo/vector-icons';
+import { AntDesign, Ionicons } from '@expo/vector-icons';
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
+import Slider from '@react-native-community/slider';
+import { useTradingStore } from '@/store/useTradingStore';
 const { width } = Dimensions.get('window');
 
 interface Leverage {
@@ -24,20 +26,18 @@ interface WsActiveAssetData {
   availableToTrade: [number, number];
 }
 
+interface Universe {
+  szDecimals: number;
+  name: string;
+  maxLeverage: number;
+}
+
 interface TradingInterfaceProps {
   symbol: string;
-  price?: string;
-  setPrice?: (price: string) => void;
-  orderType: 'Limit' | 'Market';
-  onOrderTypeChange: (type: 'Limit' | 'Market') => void;
 }
 
 const TradingInterface: React.FC<TradingInterfaceProps> = ({ 
-  symbol, 
-  price, 
-  setPrice,
-  orderType,
-  onOrderTypeChange
+  symbol
 }) => {  
   const [marginType, setMarginType] = useState('Cross');
   const [isReduceOnly, setIsReduceOnly] = useState(false);
@@ -48,7 +48,11 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const [midPrice, setMidPrice] = useState<number | null>(null);
   const [szDecimals, setSzDecimals] = useState<number>(0);
   const [isConnecting, setIsConnecting] = useState(false);
-
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const isSheetOpenRef = useRef(false);
+  const [currentLeverage, setCurrentLeverage] = useState(20);
+  const [maxLeverage, setMaxLeverage] = useState(25);
+  const { orderType, setOrderType , price, setPrice } = useTradingStore()
   const wsManager = WebSocketManager.getInstance();
   const account = useActiveAccount();
   const userAddress = account?.address || '0x0000000000000000000000000000000000000000';
@@ -58,7 +62,61 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const { approveAgent } = useApproveAgent();
   const { approvalCompleted, setApprovalCompleted } = useApprovalStore();
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
-const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const marginBottomSheetRef = useRef<BottomSheetModal>(null);
+  const isMarginSheetOpenRef = useRef(false);
+  const getLeverageSteps = (max: number) => {
+    // For small max values (≤5), just return array from 1 to max
+    if (max <= 5) {
+      return Array.from({length: max}, (_, i) => i + 1);
+    }
+    // For larger values, use 6 steps
+    return [1, Math.round(max/5), Math.round(max*2/5), Math.round(max*3/5), Math.round(max*4/5), max];
+  };
+
+  const handleIncrement = () => {
+    const steps = getLeverageSteps(maxLeverage);
+    const nextValue = steps.find(x => x > currentLeverage);
+    if (nextValue) {
+      setCurrentLeverage(nextValue);
+    }
+  };
+
+  const handleDecrement = () => {
+    const steps = getLeverageSteps(maxLeverage);
+    const prevValue = [...steps].reverse().find(x => x < currentLeverage);
+    if (prevValue) {
+      setCurrentLeverage(prevValue);
+    }
+  };
+
+  const handlePresentModalPress = useCallback(() => {
+    fetchMaxLeverage();
+    bottomSheetModalRef.current?.present();
+  }, [symbol]);
+
+  const handleSheetChanges = useCallback((index: number) => {
+    isSheetOpenRef.current = index === 0;
+    if (index === 0 && activeAssetData?.leverage?.value) {
+      setCurrentLeverage(activeAssetData.leverage.value);
+      setMarginType(activeAssetData.leverage.type);
+
+    }
+  }, [activeAssetData]);
+
+  const handleMarginSheetChanges = useCallback((index: number) => {
+    isMarginSheetOpenRef.current = index === 0;
+    if (index === 0 && activeAssetData?.leverage?.type) {
+      setCurrentLeverage(activeAssetData.leverage.value);
+
+      setMarginType(activeAssetData.leverage.type);
+    }
+  }, [activeAssetData]);
+
+  const handleMarginTypePress = useCallback(() => {
+    marginBottomSheetRef.current?.present();
+  }, []);
+
   const handleEstablishConnection = async () => {
     if (walletLoading || isConnecting) {
       return;
@@ -142,6 +200,24 @@ const [loading, setLoading] = useState(false);
     fetchTokenDecimals();
   }, [symbol]);
 
+  const fetchMaxLeverage = async () => {
+    try {
+      const response = await axios.post('https://api.hyperliquid-testnet.xyz/info', {
+        type: 'meta'
+      });
+      
+      const universe: Universe[] = response.data.universe;
+      const asset = universe.find(item => item.name === symbol);
+      
+      if (asset) {
+        setMaxLeverage(asset.maxLeverage);
+       
+      }
+    } catch (error) {
+      console.error('Error fetching max leverage:', error);
+    }
+  };
+
   // Subscribe to active asset data and mid prices
   useEffect(() => {
     const activeAssetDataListener = (response: any) => {
@@ -175,11 +251,7 @@ const [loading, setLoading] = useState(false);
     };
   }, [userAddress, symbol]);
 
-  useEffect(() => {
-    if (activeAssetData?.leverage?.type) {
-      setMarginType(activeAssetData.leverage.type.toLowerCase() === 'cross' ? 'Cross' : 'Isolated');
-    }
-  }, [activeAssetData]);
+ 
 
   // This effect updates the price when switching to a market order.
   // When orderType is "Market" and midPrice is available, set the price to midPrice with 0.5% slippage.
@@ -340,8 +412,35 @@ const [loading, setLoading] = useState(false);
     console.log(`Price accepted: ${value} (allowed decimals: ${allowedDecimals})`);
 };
 
+const updateLeverage = async () => {
+  console.log('[Leverage] Attempting to update leverage...', {
+    symbol: fullSymbol,
+    marginType,
+    currentLeverage,
+    maxLeverage
+  });
 
- 
+  if (!sdk) {
+    const errorMsg = "SDK not initialized yet.";
+    console.error('[Leverage] Error:', errorMsg);
+    setTradeStatus(errorMsg);
+    return;
+  }
+
+  try {
+    const result = await sdk.exchange.updateLeverage(fullSymbol, marginType, currentLeverage);
+    console.log('[Leverage] Update successful:', {
+      response: result,
+      finalLeverage: currentLeverage,
+      mode: marginType
+    });
+  } catch (error) {
+    console.error('[Leverage] Error updating leverage:', error);
+    setTradeStatus('Failed to update leverage');
+  }
+};
+
+
 
   const renderOrderButton = () => {
     if (!account?.address) {
@@ -400,6 +499,18 @@ const [loading, setLoading] = useState(false);
     );
   };
 
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        disappearsOnIndex={-1}
+        appearsOnIndex={0}
+        pressBehavior="close"
+      />
+    ),
+    []
+  );
+
   return (
     <View style={styles.container}>
     <Modal
@@ -431,17 +542,126 @@ const [loading, setLoading] = useState(false);
         </View>
       </View>
     </Modal>
+    <BottomSheetModal
+            ref={bottomSheetModalRef}
+            snapPoints={['48%']}
+            onChange={handleSheetChanges}
+            enablePanDownToClose={true}
+            stackBehavior="replace"
+            enableOverDrag={false}
+            enableContentPanningGesture={false}
+            index={0}
+            backgroundStyle={{ backgroundColor: '#1E1E1E' }}
+            backdropComponent={renderBackdrop}
+        >
+            <BottomSheetView style={styles.contentContainer}>
+              <Text style={styles.title}>Adjust Leverage</Text>
+              <View style={styles.leverageInputContainer}>
+                <TouchableOpacity 
+                  style={styles.adjustButton}
+                  onPress={handleDecrement}
+                >
+                  <Text style={styles.adjustButtonText}>−</Text>
+                </TouchableOpacity>
+                <View style={styles.leverageValueContainer}>
+                  <Text style={styles.leverageValue}>{currentLeverage}x</Text>
+                </View>
+                <TouchableOpacity 
+                  style={styles.adjustButton}
+                  onPress={handleIncrement}
+                >
+                  <Text style={styles.adjustButtonText}>+</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.sliderContainer}>
+                <Slider
+                  style={styles.slider}
+                  minimumValue={1}
+                  maximumValue={maxLeverage}
+                  value={currentLeverage}
+                  onValueChange={setCurrentLeverage}
+                  minimumTrackTintColor="#F0B90B"
+                  maximumTrackTintColor="#2A2D3A"
+                  thumbTintColor="#F0B90B"
+                  step={1}
+                />
+                <View style={styles.markersContainer}>
+                  {getLeverageSteps(maxLeverage).map((leverage) => (
+                    <View key={leverage} style={styles.marker}>
+                      <View style={[
+                        styles.markerDot,
+                        currentLeverage >= leverage && styles.activeDot
+                      ]} />
+                      <Text style={styles.markerText}>{leverage}x</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              <Text style={styles.warningText}>Please note that leverage changing will also apply to open positions and open orders.</Text>
+              <Text style={styles.riskText}>* Selecting higher leverage such as [10x] increases your liquidation risk. Always manage your risk levels.</Text>
+              <TouchableOpacity style={styles.confirmButton} onPress={updateLeverage}>
+                <Text style={styles.confirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </BottomSheetView>
+        </BottomSheetModal>
+        <BottomSheetModal
+            ref={marginBottomSheetRef}
+            snapPoints={['45%']}
+            onChange={handleMarginSheetChanges}
+            enablePanDownToClose={true}
+            stackBehavior="replace"
+            enableOverDrag={false}
+            enableContentPanningGesture={false}
+            index={0}
+            backgroundStyle={{ backgroundColor: '#1E1E1E' }}
+            backdropComponent={renderBackdrop}
+        >
+            <BottomSheetView style={styles.contentContainer}>
+                <View style={styles.marginHeader}>
+                    <Text style={styles.marginTitle}>Margin mode</Text>
+                </View>
+                <View style={styles.marginOptionsContainer}>
+                    <TouchableOpacity 
+                        style={[
+                            styles.marginOptionButton,
+                            marginType === 'cross' && styles.selectedMarginOption
+                        ]}
+                        onPress={() => setMarginType('cross')}
+                    >
+                        <Text style={styles.marginOptionText}>Cross</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[
+                            styles.marginOptionButton,
+                            marginType === 'isolated' && styles.selectedMarginOption
+                        ]}
+                        onPress={() => setMarginType('isolated')}
+                    >
+                        <Text style={styles.marginOptionText}>Isolated</Text>
+                    </TouchableOpacity>
+                </View>
+                <Text style={styles.marginNote}>This margin mode adjustment will only affect the selected futures trading pair.</Text>
+              
+                <TouchableOpacity 
+                    style={styles.confirmButton}
+                    onPress={updateLeverage}
+                >
+                    <Text style={styles.confirmButtonText}>Confirm</Text>
+                </TouchableOpacity>
+            </BottomSheetView>
+        </BottomSheetModal>
       <View style={styles.tradingInterface}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.dropdownButton}>
+          <TouchableOpacity style={styles.dropdownButton} onPress={handlePresentModalPress}>
             <Text style={styles.headerText}>{activeAssetData?.leverage?.value || "0"}x</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.dropdownButton}
-            onPress={() => setMarginType(marginType === 'Cross' ? 'Isolated' : 'Cross')}
+            onPress={handleMarginTypePress}
+
           >
-            <Text style={styles.headerText}>{marginType}</Text>
+            <Text style={styles.headerText}>{activeAssetData?.leverage?.type}</Text>
           </TouchableOpacity>
         </View>
 
@@ -467,7 +687,7 @@ const [loading, setLoading] = useState(false);
         <View style={styles.orderTypeContainer}>
           <TouchableOpacity
             style={[styles.orderTypeButton, styles.activeOrderType]}
-            onPress={() => onOrderTypeChange(orderType === 'Limit' ? 'Market' : 'Limit')}
+            onPress={() => setOrderType(orderType === 'Limit' ? 'Market' : 'Limit')}
           >
             <Text style={styles.orderTypeText}>{orderType}</Text>
           </TouchableOpacity>
@@ -812,6 +1032,168 @@ const styles = StyleSheet.create({
   },
   disabledButtonText: {
     color: '#8E8E93',
+  },
+  contentContainer: {
+    padding: 16,
+    backgroundColor: '#1A1C24',
+  },
+  title: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  leverageInputContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  adjustButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  adjustButtonText: {
+    fontSize: 24,
+    color: '#FFFFFF',
+  },
+  leverageValueContainer: {
+    backgroundColor: '#2A2D3A',
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    borderRadius: 4,
+    marginHorizontal: 12,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  leverageValue: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '500',
+  },
+  sliderContainer: {
+    marginBottom: 24,
+    paddingHorizontal: 8,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  markersContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  marker: {
+    alignItems: 'center',
+  },
+  markerDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2A2D3A',
+    marginBottom: 4,
+  },
+  activeDot: {
+    backgroundColor: '#F0B90B',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+    borderColor: '#2A2D3A',
+  },
+  markerText: {
+    color: '#8E8E93',
+    fontSize: 12,
+  },
+  noteText: {
+    color: '#8E8E93',
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  warningText: {
+    color: '#8E8E93',
+    fontSize: 12,
+    marginBottom: 12,
+  },
+  riskText: {
+    color: '#8E8E93',
+    fontSize: 12,
+    marginBottom: 24,
+    lineHeight: 18,
+  },
+  linkText: {
+    color: '#F0B90B',
+  },
+  confirmButton: {
+    backgroundColor: '#F0B90B',
+    padding: 16,
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  marginHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2A2D3A',
+  },
+  marginTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  marginOptionsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 16,
+    gap: 12,
+  },
+  marginOptionButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#2A2D3A',
+    backgroundColor: '#1E1E1E',
+  },
+  selectedMarginOption: {
+    borderColor: '#F0B90B',
+    backgroundColor: 'rgba(240, 185, 11, 0.1)',
+  },
+  marginOptionText: {
+    fontSize: 16,
+    color: '#fff',
+    textAlign: 'center',
+  },
+  marginNote: {
+    fontSize: 14,
+    color: '#808080',
+    padding: 16,
+    lineHeight: 20,
+  },
+  marginInfoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#2A2D3A',
+  },
+  marginInfoText: {
+    fontSize: 16,
+    color: '#fff',
   },
 });
 

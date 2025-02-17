@@ -37,8 +37,6 @@ const FuturesPage: React.FC = () => {
     initialSymbol?.toString() || "BTC"
   );
   const fullSymbol = `${selectedSymbol}-PERP`;
-  const [price, setPrice] = useState("");
-  const [orderType, setOrderType] = useState<'Limit' | 'Market'>('Limit');
   const [fundingRate, setFundingRate] = useState("0.0001");
   const [countdown, setCountdown] = useState("00:00:00");
 
@@ -204,19 +202,12 @@ const FuturesPage: React.FC = () => {
           <View style={styles.orderBook}>
             <OrderBook
               symbol={selectedSymbol || "BTC"}
-              tradeType={orderType}
-              onPriceSelect={(selectedPrice) =>
-                setPrice(selectedPrice.toString())
-              }
+             
             />
           </View>
           <View style={styles.tradingInterface}>
             <TradingInterface
               symbol={selectedSymbol || "BTC"}
-              price={price}
-              setPrice={setPrice}
-              orderType={orderType}
-              onOrderTypeChange={setOrderType}
             />
           </View>
         </View>

@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { StyleSheet, View, Text, FlatList, ActivityIndicator, Dimensions, TouchableOpacity } from "react-native";
 import WebSocketManager from "@/api/WebSocketManager";
+import { useTradingStore } from "@/store/useTradingStore";
 
 interface OrderBookProps {
   symbol: string;
   onPriceSelect?: (price: number) => void;
-  tradeType?: 'Limit' | 'Market';
 }
 
 interface OrderLevel {
   px: number;
   sz: number;
   cumulative: number;
-  barWidth: string;
 }
 
 const { width } = Dimensions.get('window');
@@ -20,80 +19,84 @@ const { height } = Dimensions.get('window');
 
 const OrderBook: React.FC<OrderBookProps> = ({
   symbol,
-  onPriceSelect,
-  tradeType = 'Limit',
 }) => {
+  const [fullBids, setFullBids] = useState<OrderLevel[]>([]);
+  const [fullAsks, setFullAsks] = useState<OrderLevel[]>([]);
   const [bids, setBids] = useState<OrderLevel[]>([]);
   const [asks, setAsks] = useState<OrderLevel[]>([]);
   const [midPrice, setMidPrice] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { orderType , setPrice } = useTradingStore();
+  const maxLevels = orderType === 'Limit' ? 8 : 6;
 
-  const maxLevels = tradeType === 'Limit' ? 8 : 6;
+  const orderBookListener = (data: any) => {
+    if (!data?.levels || data.coin !== symbol) return;
+
+    const [bidsData, asksData] = data.levels;
+    if (!Array.isArray(bidsData) || !Array.isArray(asksData)) return;
+
+    let cumulativeBidSize = 0;
+    const processedBids = bidsData.map((level: any) => {
+      cumulativeBidSize += parseFloat(level.sz);
+      return {
+        px: parseFloat(level.px),
+        sz: parseFloat(level.sz),
+        cumulative: cumulativeBidSize
+      };
+    });
+
+    let cumulativeAskSize = 0;
+    const processedAsks = asksData.map((level: any) => {
+      cumulativeAskSize += parseFloat(level.sz);
+      return {
+        px: parseFloat(level.px),
+        sz: parseFloat(level.sz),
+        cumulative: cumulativeAskSize
+      };
+    });
+
+    setFullBids(processedBids);
+    setFullAsks(processedAsks);
+    setIsLoading(false);
+  };
+
+  const allMidsListener = (data: any) => {
+    if (data?.mids?.[symbol]) {
+      setMidPrice(parseFloat(data.mids[symbol]));
+    } else {
+      setMidPrice(NaN);
+    }
+  };
+
+  useEffect(() => {
+    if (fullBids.length === 0 || fullAsks.length === 0) return;
+
+    const processedBids = fullBids.slice(0, maxLevels);
+    const processedAsks = fullAsks.slice(0, maxLevels);
+
+    const maxCumulative = Math.max(
+      processedBids[processedBids.length - 1]?.cumulative || 0,
+      processedAsks[processedAsks.length - 1]?.cumulative || 0
+    );
+
+    setBids(
+      processedBids.map(level => ({
+        ...level,
+        barWidth: `${(level.cumulative / maxCumulative) * 100}%`
+      }))
+    );
+
+    setAsks(
+      processedAsks.map(level => ({
+        ...level,
+        barWidth: `${(level.cumulative / maxCumulative) * 100}%`
+      }))
+    );
+  }, [fullBids, fullAsks, maxLevels]);
 
   useEffect(() => {
     const wsManager = WebSocketManager.getInstance();
-
-    const orderBookListener = (data: any) => {
-      if (!data || !data.levels) return;
-      
-      if (data.coin !== symbol) {
-        return; // Ignore data for other symbols
-      }
-
-      if (data.levels && Array.isArray(data.levels)) {
-        const [bidsData, asksData] = data.levels;
-
-        // Calculate cumulative amounts for bids
-        let cumulativeBidSize = 0;
-        const processedBids = bidsData.slice(0, maxLevels).map((level: any) => {
-          cumulativeBidSize += parseFloat(level.sz);
-          return {
-            px: parseFloat(level.px),
-            sz: parseFloat(level.sz),
-            cumulative: cumulativeBidSize
-          };
-        });
-
-        // Calculate cumulative amounts for asks
-        let cumulativeAskSize = 0;
-        const processedAsks = asksData.slice(0, maxLevels).map((level: any) => {
-          cumulativeAskSize += parseFloat(level.sz);
-          return {
-            px: parseFloat(level.px),
-            sz: parseFloat(level.sz),
-            cumulative: cumulativeAskSize
-          };
-        });
-
-        // Find max cumulative size for percentage calculation
-        const maxCumulative = Math.max(cumulativeBidSize, cumulativeAskSize);
-
-        setBids(
-          processedBids.map((level) => ({
-            ...level,
-            barWidth: `${(level.cumulative / maxCumulative) * 100}%`
-          }))
-        );
-
-        setAsks(
-          processedAsks.map((level) => ({
-            ...level,
-            barWidth: `${(level.cumulative / maxCumulative) * 100}%`
-          }))
-        );
-        
-        setIsLoading(false);
-      }
-    };
-
-    const allMidsListener = (data: any) => {
-      if (data?.mids && data.mids[symbol]) {
-        setMidPrice(parseFloat(data.mids[symbol]));
-      } else {
-        setMidPrice(NaN);
-      }
-    };
 
     wsManager.subscribe(
       "l2Book",
@@ -110,7 +113,7 @@ const OrderBook: React.FC<OrderBookProps> = ({
       );
       wsManager.unsubscribe("allMids", { type: "allMids" }, allMidsListener);
     };
-  }, [symbol, tradeType]);
+  }, [symbol]);
 
   const renderOrder = (
     { item }: { item: any; index: number },
@@ -122,11 +125,8 @@ const OrderBook: React.FC<OrderBookProps> = ({
 
     return (
       <TouchableOpacity
-        onPress={() => {
-          if (onPriceSelect) {
-            onPriceSelect(item.px);
-          }
-        }}
+      onPress={() => setPrice(item.px.toString())}
+
       >
         <View style={[styles.orderRow, { marginVertical: 2 }]}>
           <View
