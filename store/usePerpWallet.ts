@@ -16,22 +16,36 @@ interface Leverage {
 
 interface PerpPosition {
   coin: string;
-  size: number;
-  entryPx: number;
-  unrealizedPnl: number;
+  size: string;
+  entryPx: string;
+  unrealizedPnl: string;
   liquidationPx: string;
-  marginUsed: number;
-  returnOnEquity: number;
+  marginUsed: string;
+  returnOnEquity: string;
   leverage: Leverage;
-  markPx: number;
-  positionValue: number;
+  markPx: string;
+  positionValue: string;
   maxLeverage: number;
   cumFunding: any;
+}
+
+interface Order {
+  coin: string;
+  side: string;
+  limitPx: string;
+  sz: string;
+  orderType: string;
+  timestamp: number;
+  isTrigger: boolean;
+  oid: number;
 }
 
 interface PerpState {
   assets: PerpAsset[];
   positions: PerpPosition[];
+  openOrders: Order[];
+  assetContexts: any[];
+  metaUniverse: any[];
   accountValue: number;
   totalPnl: number;
   isLoading: boolean;
@@ -45,7 +59,26 @@ export const usePerpWallet = create<PerpState>((set, get) => {
       console.log("[PerpWallet] No data received");
       return;
     }
+    if (data.openOrders) {
+      set(state => ({
+        ...state,
+        openOrders: data.openOrders
+      }));
+    }
 
+    if (data.assetCtxs) {
+      set(state => ({
+        ...state,
+        assetContexts: data.assetCtxs
+      }));
+    }
+
+    if (data.meta?.universe) {
+      set(state => ({
+        ...state,
+        metaUniverse: data.meta.universe
+      }));
+    }
 
     try {
       const clearinghouseState = data?.clearinghouseState;
@@ -127,6 +160,9 @@ export const usePerpWallet = create<PerpState>((set, get) => {
   return {
     assets: [],
     positions: [],
+    openorders: [],
+    assetContexts: [],
+    metaUniverse: [],
     accountValue: 0,
     totalPnl: 0,
     isLoading: true,

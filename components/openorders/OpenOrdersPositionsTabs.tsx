@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity } from "react-native";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import WebSocketManager from "@/api/WebSocketManager";
@@ -6,33 +6,9 @@ import { useHyperliquid } from "@/context/HyperliquidContext";
 import { useActiveAccount } from "thirdweb/react";
 import { OrderRequest, placeOrderl1 } from "@/utils/Signing";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
+import { BottomSheetModal, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { usePerpWallet } from "@/store/usePerpWallet";
 
-interface Order {
-  coin: string;
-  side: string;
-  limitPx: string;
-  sz: string;
-  orderType: string;
-  timestamp: number;
-  isTrigger: boolean;
-  oid: number;
-}
-
-interface Position {
-  position: {
-    coin: string;
-    szi: string;
-    leverage: {
-      value: number;
-      type: string;
-    };
-    entryPx: string;
-    unrealizedPnl: string;
-    returnOnEquity: string;
-    liquidationPx: string | null;
-    marginUsed: string;
-  };
-}
 
 interface TradingInterfaceProps {
   symbol: string;
@@ -50,42 +26,48 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
   ]);
   const [hideOtherSymbols, setHideOtherSymbols] = useState(false);
   const [cancelallStatus, setcancelallStatus] = useState<string | null>(null);
-  const [assetContexts, setAssetContexts] = useState<any[]>([]);
-  const [metaUniverse, setMetaUniverse] = useState<any[]>([]);
   const [closeallStatus, setcloseallStatus] = useState<string | null>(null);
   const [closeStatus, setcloseStatus] = useState<string | null>(null);
   const {wallet }= useAgentWallet()
+  const bottomSheetModalRef = useRef<BottomSheetModal>(null);
+  const snapPoints = ["50%"];
+  const [size, setSize] = useState('');
+  const [price, setPrice] = useState('');
+  const [orderType, setOrderType] = useState('Market');
+  const [isBuy, setIsBuy] = useState(true);
+  const [isReduceOnly, setIsReduceOnly] = useState(false);
 
-  const [openOrders, setOpenOrders] = useState<Order[]>([]);
-  const [positions, setPositions] = useState<Position[]>([]);
+  const handlePresentModal = useCallback(() => {
+    bottomSheetModalRef.current?.present();
+  }, []);
+
+  const handleDismissModal = useCallback(() => {
+    bottomSheetModalRef.current?.dismiss();
+  }, []);
+
+  const renderBackdrop = useCallback(
+    (props: any) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+      />
+    ),
+    []
+  );
+
+  const { 
+    positions,
+    openOrders,
+    assetContexts,
+    metaUniverse,
+    subscribeToWebSocket
+  } = usePerpWallet();
+
+ 
+
   const account = useActiveAccount();
-  useEffect(() => {
 
-    if (!account?.address) {
-      // User is logged out, clear orders and positions.
-      setOpenOrders([]);
-      setPositions([]);
-      return;
-    }
-    const wsManager = WebSocketManager.getInstance();
-    const listener = (data: any) => {
-      if (data.openOrders) setOpenOrders(data.openOrders);
-      if (data.clearinghouseState?.assetPositions) {
-        setPositions(data.clearinghouseState.assetPositions);
-      }
-
-      if (data.assetCtxs) {
-        setAssetContexts(data.assetCtxs);
-      }
-      if (data.meta?.universe) {
-        setMetaUniverse(data.meta.universe);
-      }
-    };
-    wsManager.addListener("webData2", listener);
-    return () => {
-      wsManager.removeListener("webData2", listener);
-    };
-  }, [account?.address]); 
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -117,7 +99,6 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
         error ? `Failed to cancel order: ${error}` : "Order cancelled successfully!"
       );
       // Optionally remove the cancelled order from the list:
-      setOpenOrders((prevOrders) => prevOrders.filter((order) => order.oid !== oid));
     } catch (error: any) {
       setcancelStatus(`Failed to cancel order: ${error.message ?? "Unknown error"}`);
     }
@@ -238,6 +219,59 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
       }
     }
   };
+
+
+  const handletpsl = async () => {
+    if (!sdk) {
+      return;
+    }
+    const sizeNum = parseFloat(size);
+    const priceNum = parseFloat(price);
+
+    if (isNaN(sizeNum) || sizeNum <= 0) {
+      return;
+    }
+    if (isNaN(priceNum) || priceNum <= 0) {
+      return;
+    }
+
+    // Set order type conditionally:
+    const orderTypeObject =
+      orderType === 'Market'
+        ? { limit: { tif: "FrontendMarket" } }
+        : { limit: { tif: "Gtc" } };
+        
+        console.log("Placing order with details:", {
+          coin: fullSymbol,
+          is_buy: isBuy,
+          sz: sizeNum,
+          limit_px: priceNum,
+          order_type: orderTypeObject,
+          reduce_only: isReduceOnly,
+        });
+    try {
+      const result = await sdk.exchange.placeOrder({
+        orders: [{
+          coin: 'BTC-PERP',
+          is_buy: true,
+          sz: 1,
+          limit_px: 30000,
+          order_type: { limit: { tif: 'Gtc' } },
+          reduce_only: false
+        }],
+        grouping: 'positionTpsl',
+        builder: {
+          address: '0x...',
+          fee: 999,
+        }
+      })
+      const error = result?.response?.data?.statuses?.[0]?.error;
+      console.log("Order result:", result);
+      console.log("Error:", error);
+    } catch (error: any) {
+      console.log(`Failed to place order: ${error.message ?? "Unknown error"}`);
+    }
+  };
  
 
   const renderOrders = () => (
@@ -321,22 +355,22 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
     </View>
     <ScrollView style={styles.positionsContainer} nestedScrollEnabled={true}>
       {positions
-    .filter((pos) => !hideOtherSymbols || pos.position.coin === symbol)
+    .filter((pos) => !hideOtherSymbols || pos.coin === symbol)
       .map((pos, idx) => {
-        const coin = pos.position.coin;
+        const coin = pos.coin;
             const assetIndex = metaUniverse.findIndex((asset) => asset.name === coin);
             const markPx = assetIndex !== -1 && assetContexts[assetIndex] 
               ? parseFloat(assetContexts[assetIndex].markPx)
               : '-';
-        const pnl = parseFloat(pos.position.unrealizedPnl);
+        const pnl = parseFloat(pos.unrealizedPnl);
         
         
         return (
           <View key={idx} style={styles.positionItem}>
             <View style={styles.positionHeader}>
-              <Text style={styles.coinText}>{pos.position.coin}-PERP</Text>
+              <Text style={styles.coinText}>{pos.coin}-PERP</Text>
               <Text style={styles.leverageText}>
-                {pos.position.leverage.type} {pos.position.leverage.value}x
+                {pos.leverage.type} {pos.leverage.value}x
               </Text>
               <View style={styles.pnlContainer}>
                 <Text
@@ -353,35 +387,35 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
                     pnl < 0 ? styles.negative : styles.positive,
                   ]}
                 >
-                  {parseFloat(pos.position.returnOnEquity).toFixed(2)}%
+                  {parseFloat(pos.returnOnEquity).toFixed(2)}%
                 </Text>
               </View>
             </View>
             <View style={styles.detailsRow}>
               <View style={styles.detailsColumn}>
-                <DetailRow label="Size (BTC)" value={pos.position.szi} />
+                <DetailRow label="Size (BTC)" value={pos.size} />
                 <DetailRow
                   label="Margin (USDT)"
-                  value={pos.position.marginUsed}
+                  value={pos.marginUsed}
                 />
                 <DetailRow
                   label="Margin Ratio"
                   value={`${(
-                    (parseFloat(pos.position.marginUsed) /
-                      (parseFloat(pos.position.szi) *
-                        parseFloat(pos.position.entryPx))) *
+                    (parseFloat(pos.marginUsed) /
+                      (parseFloat(pos.size) *
+                        parseFloat(pos.entryPx))) *
                     100
                   ).toFixed(2)}%`}
                 />
               </View>
               <View style={styles.detailsColumn}>
-                <DetailRow label="Entry Price" value={pos.position.entryPx} />
+                <DetailRow label="Entry Price" value={pos.entryPx} />
                 <DetailRow label="Mark Price" value={markPx} />
                 <DetailRow
                   label="Liq. Price"
                   value={
-                    pos.position.liquidationPx !== null 
-                      ? parseFloat(pos.position.liquidationPx).toPrecision(5) 
+                    pos.liquidationPx !== null 
+                      ? parseFloat(pos.liquidationPx).toPrecision(5) 
                       : '-' 
                   } 
                 />
@@ -389,12 +423,12 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
             </View>
             <View style={styles.actionRow}>
               <Text style={styles.leverageLabel}>
-                Leverage {pos.position.leverage.value}x
+                Leverage {pos.leverage.value}x
               </Text>
-              <TouchableOpacity style={styles.tpslButton}>
+              <TouchableOpacity style={styles.tpslButton} onPress={handlePresentModal}>
                 <Text style={styles.tpslText}>TP/SL</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.closeButton} onPress={() => closePosition(pos.position.coin)}>
+              <TouchableOpacity style={styles.closeButton} onPress={() => closePosition(pos.coin)}>
                 <Text style={styles.closeButtonText}>Close</Text>
               </TouchableOpacity>
             </View>
@@ -406,7 +440,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
 
   );
 
-  const DetailRow = ({ label, value }: { label: string; value: string }) => (
+  const DetailRow = ({ label, value }: { label: string; value: string | number }) => (
     <View style={styles.detailRow}>
       <Text style={styles.detailLabel}>{label}</Text>
       <Text style={styles.detailValue}>{value}</Text>
@@ -419,25 +453,40 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
   });
 
   return (
-    <TabView
-      navigationState={{ index, routes }}
-      renderScene={renderScene}
-      onIndexChange={setIndex}
-      initialLayout={{ width: Dimensions.get("window").width }}
-      renderTabBar={(props) => (
-        <TabBar
-          {...props}
-          indicatorStyle={styles.tabIndicator}
-          style={styles.tabBar}
-          labelStyle={styles.tabLabel}
-        />
-      )}
-      style={styles.tabView}
-    />
+    <View style={styles.container}>
+      <TabView
+        navigationState={{ index, routes }}
+        renderScene={renderScene}
+        onIndexChange={setIndex}
+        initialLayout={{ width: Dimensions.get("window").width }}
+        renderTabBar={(props) => (
+          <TabBar
+            {...props}
+            indicatorStyle={styles.tabIndicator}
+            style={styles.tabBar}
+            labelStyle={styles.tabLabel}
+          />
+        )}
+        style={styles.tabView}
+      />
+      <BottomSheetModal
+        ref={bottomSheetModalRef}
+        index={0}
+        snapPoints={snapPoints}
+        backdropComponent={renderBackdrop}
+        backgroundStyle={styles.bottomSheetBackground}
+      >
+        <View style={styles.bottomSheetContent}>
+          <Text style={styles.bottomSheetTitle}>Set TP/SL</Text>
+          {/* Add your TP/SL form components here */}
+        </View>
+      </BottomSheetModal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
+  container: { flex: 1 },
   tabView: { flex: 1 },
   tabBar: { backgroundColor: "#13141B" },
   tabIndicator: { backgroundColor: "#00C087" },
@@ -583,6 +632,19 @@ const styles = StyleSheet.create({
   closeAllText: { 
     color: "#8E8E93", 
     fontSize: 14 
+  },
+  bottomSheetBackground: {
+    backgroundColor: '#13141B',
+  },
+  bottomSheetContent: {
+    flex: 1,
+    padding: 16,
+  },
+  bottomSheetTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
   },
 });
 

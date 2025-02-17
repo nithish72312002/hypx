@@ -168,13 +168,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
     }
   }, [isBuy, activeAssetData?.maxTradeSzs, isReduceOnly, currentPosition]);
 
-  useEffect(() => {
-    console.log('Reduce-only state changed:', {
-      isReduceOnly,
-      symbol,
-      currentPosition: currentPosition?.size
-    });
-  }, [isReduceOnly, symbol, currentPosition]);
+  
 
   const handleEstablishConnection = async () => {
     if (walletLoading || isConnecting) {
