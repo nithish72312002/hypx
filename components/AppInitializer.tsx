@@ -6,6 +6,8 @@ import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { useSpotStore } from "@/store/useSpotStore";
 import { useWebData2Store } from "@/store/useWebData2Store";
 import { usePerpStore } from "@/store/usePerpStore";
+import { usePerpWallet } from "@/store/usePerpWallet";
+import { useSpotWallet } from "@/store/useSpotWallet";
 
 interface AppInitializerContextType {
   // Empty interface since we removed needsDeposit
@@ -28,6 +30,8 @@ export default function AppInitializer({ children }: { children?: React.ReactNod
   const { subscribeToWebSocket: subscribeToSpotWebSocket, fetchTokenMapping } = useSpotStore();
   const { subscribeToWebSocket: subscribeToPerpWebSocket } = usePerpStore();
   const webData2Store = useWebData2Store();
+  const perpWallet = usePerpWallet();
+  const spotWallet = useSpotWallet();
 
   useEffect(() => {
     // Initialize WebSocket connection through WebData2Store
@@ -40,9 +44,17 @@ export default function AppInitializer({ children }: { children?: React.ReactNod
     // Initialize perp store
     const unsubscribePerp = subscribeToPerpWebSocket();
 
+    // Initialize wallet stores when account is available
+    let unsubscribePerpWallet: (() => void) | undefined;
+    let unsubscribeSpotWallet: (() => void) | undefined;
+
     if (account?.address) {
       WebSocketManager.getInstance().updateUserAddress(account.address);
-      // Initialize approval check when account is available
+      
+      // Initialize wallet subscriptions
+      unsubscribePerpWallet = perpWallet.subscribeToWebSocket();
+      unsubscribeSpotWallet = spotWallet.subscribeToWebSocket();
+
       if (wallet) {  
         queryUserRole(wallet.address, account.address);
       }
@@ -55,6 +67,8 @@ export default function AppInitializer({ children }: { children?: React.ReactNod
       unsubscribeWebData2();
       unsubscribeSpot();
       unsubscribePerp();
+      if (unsubscribePerpWallet) unsubscribePerpWallet();
+      if (unsubscribeSpotWallet) unsubscribeSpotWallet();
     };
   }, [account?.address, wallet]);
 

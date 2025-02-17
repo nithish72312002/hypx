@@ -12,6 +12,8 @@ import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/
 import Slider from '@react-native-community/slider';
 import { useTradingStore } from '@/store/useTradingStore';
 const { width } = Dimensions.get('window');
+import { usePerpWallet } from "@/store/usePerpWallet";
+import { router } from 'expo-router';
 
 interface Leverage {
   type: string;
@@ -48,6 +50,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const [midPrice, setMidPrice] = useState<number | null>(null);
   const [szDecimals, setSzDecimals] = useState<number>(0);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [maxTradeSize, setMaxTradeSize] = useState<number>(0);
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
   const isSheetOpenRef = useRef(false);
   const [currentLeverage, setCurrentLeverage] = useState(20);
@@ -116,6 +119,62 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const handleMarginTypePress = useCallback(() => {
     marginBottomSheetRef.current?.present();
   }, []);
+
+  const { 
+    positions,
+    subscribeToWebSocket
+  } = usePerpWallet();
+
+  useEffect(() => {
+    const unsubscribe = subscribeToWebSocket();
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [subscribeToWebSocket]);
+
+  const currentPosition = positions?.find(p => p.coin === symbol);
+
+  useEffect(() => {
+
+    // For reduce-only orders
+    if (isReduceOnly) {
+      // If no position exists, set max size to 0
+      if (!currentPosition) {
+        setMaxTradeSize(0);
+        return;
+      }
+
+      const positionSize = Math.abs(currentPosition.size);
+      if (isBuy) {
+        // If position is short (negative), allow buying to close
+        // If position is long (positive), don't allow buying more
+        const maxSize = currentPosition.size < 0 ? positionSize : 0;
+        setMaxTradeSize(maxSize);
+      } else {
+        // If position is long (positive), allow selling to close
+        // If position is short (negative), don't allow selling more
+        const maxSize = currentPosition.size > 0 ? positionSize : 0;
+        setMaxTradeSize(maxSize);
+      }
+    } 
+    // For normal orders, use maxTradeSzs
+    else {
+      const normalMaxSize = isBuy ? 
+        (activeAssetData?.maxTradeSzs?.[0] || 0) : 
+        (activeAssetData?.maxTradeSzs?.[1] || 0);
+      setMaxTradeSize(normalMaxSize);
+    }
+  }, [isBuy, activeAssetData?.maxTradeSzs, isReduceOnly, currentPosition]);
+
+  useEffect(() => {
+    console.log('Reduce-only state changed:', {
+      isReduceOnly,
+      symbol,
+      currentPosition: currentPosition?.size
+    });
+  }, [isReduceOnly, symbol, currentPosition]);
 
   const handleEstablishConnection = async () => {
     if (walletLoading || isConnecting) {
@@ -317,7 +376,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
           sz: sizeNum,
           limit_px: priceNum,
           order_type: orderTypeObject,
-          reduce_only: false,
+          reduce_only: isReduceOnly,
         });
     try {
       const result = await sdk.exchange.placeOrder({ 
@@ -336,8 +395,20 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   };
 
   const handleSizeChange = (value: string) => {
+    console.log('handleSizeChange:', {
+      value,
+      maxTradeSize,
+      isReduceOnly,
+      currentPosition: currentPosition?.size
+    });
+    
     const regex = new RegExp(`^\\d+(\\.\\d{0,${szDecimals}})?$`);
     if (regex.test(value)) {
+      const numValue = parseFloat(value);
+      if (isReduceOnly && currentPosition && numValue > maxTradeSize) {
+        setSize(maxTradeSize.toString());
+        return;
+      }
       setSize(value);
     } else {
       console.log(`Invalid size entered for ${szDecimals} decimals:`, value);
@@ -715,8 +786,7 @@ const updateLeverage = async () => {
           <View style={[styles.inputRow, { justifyContent: 'space-between' }]}>
             <Text style={styles.label}>Amount {symbol}</Text>
             <TouchableOpacity style={styles.maxButton} onPress={() => {
-              const max = isBuy ? activeAssetData?.maxTradeSzs?.[0] : activeAssetData?.maxTradeSzs?.[1];
-              setSize(max?.toString() || '0.00');
+              setSize(maxTradeSize?.toString() || '0.00');
             }}>
               <Text style={styles.maxButtonText}>Max</Text>
             </TouchableOpacity>
@@ -735,7 +805,13 @@ const updateLeverage = async () => {
 
         {/* Options Row */}
         <View style={styles.optionsContainer}>
-          <TouchableOpacity style={styles.optionButton} onPress={() => setIsReduceOnly(!isReduceOnly)}>
+          <TouchableOpacity 
+            style={styles.optionButton} 
+            onPress={() => {
+              console.log('Toggling reduce-only from:', isReduceOnly);
+              setIsReduceOnly(!isReduceOnly);
+            }}
+          >
             <View style={[styles.optionIndicator, isReduceOnly && styles.checkedIndicator]}>
               {isReduceOnly && <Text style={styles.checkmark}>✓</Text>}
             </View>
@@ -747,7 +823,7 @@ const updateLeverage = async () => {
         <View style={styles.row}>
           <Text style={styles.orderButtonSubtext}>Max</Text>
           <Text style={styles.orderButtonValue}>
-            {(isBuy ? activeAssetData?.maxTradeSzs?.[0] : activeAssetData?.maxTradeSzs?.[1]) || '0.000'} {symbol}
+            {maxTradeSize} {symbol}
           </Text>
         </View>
         {/* Order Button or Login Button */}

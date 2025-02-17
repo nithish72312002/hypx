@@ -127,8 +127,7 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
         <View style={styles.positionHeader}>
           <Text style={styles.assetName}>{item.coin}/USDC</Text>
           <Text style={styles.leverageText}>
-            {item.leverage.type === "cross" ? "Cross" : "Isolated"}{" "}
-            {item.leverage.value}x
+            {item.leverage.type} {item.leverage.value}x
           </Text>
         </View>
 
