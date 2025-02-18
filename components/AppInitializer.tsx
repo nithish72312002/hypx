@@ -6,7 +6,7 @@ import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { useSpotStore } from "@/store/useSpotStore";
 import { useWebData2Store } from "@/store/useWebData2Store";
 import { usePerpStore } from "@/store/usePerpStore";
-import { usePerpWallet } from "@/store/usePerpWallet";
+import { usePerpOrdersStore, usePerpPositionsStore, usePerpContextStore } from "@/store/usePerpWallet";
 import { useSpotWallet } from "@/store/useSpotWallet";
 
 interface AppInitializerContextType {
@@ -30,7 +30,9 @@ export default function AppInitializer({ children }: { children?: React.ReactNod
   const { subscribeToWebSocket: subscribeToSpotWebSocket, fetchTokenMapping } = useSpotStore();
   const { subscribeToWebSocket: subscribeToPerpWebSocket } = usePerpStore();
   const webData2Store = useWebData2Store();
-  const perpWallet = usePerpWallet();
+  const perpOrdersStore = usePerpOrdersStore();
+  const perpPositionsStore = usePerpPositionsStore();
+  const perpContextStore = usePerpContextStore();
   const spotWallet = useSpotWallet();
 
   useEffect(() => {
@@ -45,14 +47,18 @@ export default function AppInitializer({ children }: { children?: React.ReactNod
     const unsubscribePerp = subscribeToPerpWebSocket();
 
     // Initialize wallet stores when account is available
-    let unsubscribePerpWallet: (() => void) | undefined;
+    let unsubscribePerpOrders: (() => void) | undefined;
+    let unsubscribePerpPositions: (() => void) | undefined;
+    let unsubscribePerpContext: (() => void) | undefined;
     let unsubscribeSpotWallet: (() => void) | undefined;
 
     if (account?.address) {
       WebSocketManager.getInstance().updateUserAddress(account.address);
       
       // Initialize wallet subscriptions
-      unsubscribePerpWallet = perpWallet.subscribeToWebSocket();
+      unsubscribePerpOrders = perpOrdersStore.subscribeToWebSocket();
+      unsubscribePerpPositions = perpPositionsStore.subscribeToWebSocket();
+      unsubscribePerpContext = perpContextStore.subscribeToWebSocket();
       unsubscribeSpotWallet = spotWallet.subscribeToWebSocket();
 
       if (wallet) {  
@@ -67,7 +73,9 @@ export default function AppInitializer({ children }: { children?: React.ReactNod
       unsubscribeWebData2();
       unsubscribeSpot();
       unsubscribePerp();
-      if (unsubscribePerpWallet) unsubscribePerpWallet();
+      if (unsubscribePerpOrders) unsubscribePerpOrders();
+      if (unsubscribePerpPositions) unsubscribePerpPositions();
+      if (unsubscribePerpContext) unsubscribePerpContext();
       if (unsubscribeSpotWallet) unsubscribeSpotWallet();
     };
   }, [account?.address, wallet]);

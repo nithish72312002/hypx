@@ -3,7 +3,7 @@ import { ethers } from "ethers";
 import { getPrivateKey, savePrivateKey } from "@/utils/storage";
 
 export function useAgentWallet() {
-  const [wallet, setWallet] = useState<ethers.HDNodeWallet | null>(null);
+  const [wallet, setWallet] = useState<ethers.Wallet | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -13,7 +13,9 @@ export function useAgentWallet() {
       setLoading(true);
       setError(null);
 
-      const agentWallet = ethers.Wallet.createRandom();
+      // Convert HDNodeWallet to regular Wallet
+      const randomWallet = ethers.Wallet.createRandom();
+      const agentWallet = new ethers.Wallet(randomWallet.privateKey);
       await savePrivateKey(agentWallet.privateKey);
       setWallet(agentWallet);
       console.log("useAgentWallet: New wallet created and saved.");

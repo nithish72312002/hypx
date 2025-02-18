@@ -2,11 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import WalletActionButtons from '@/components/buttons/WalletActionButtons';
 import { useSpotWallet } from '@/store/useSpotWallet';
-import { usePerpWallet } from '@/store/usePerpWallet';
+import { usePerpPositionsStore } from '@/store/usePerpWallet';
 
 const Overview = () => {
   const { totalValue: spotTotal } = useSpotWallet();
-  const { accountValue: futuresTotal } = usePerpWallet();
+  const { accountValue: futuresTotal } = usePerpPositionsStore();
   
   const totalValue = spotTotal + futuresTotal;
 

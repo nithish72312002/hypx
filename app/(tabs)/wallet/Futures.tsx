@@ -11,7 +11,7 @@ import {
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import { useActiveAccount } from "thirdweb/react";
 import WalletActionButtons from '@/components/buttons/WalletActionButtons';
-import { usePerpWallet } from "@/store/usePerpWallet";
+import { usePerpPositionsStore } from "@/store/usePerpWallet";
 
 interface FuturesTabProps {
   scrollEnabled?: boolean;
@@ -48,7 +48,7 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
     isLoading,
     error,
     subscribeToWebSocket
-  } = usePerpWallet();
+  } = usePerpPositionsStore();
 
   useEffect(() => {
     const unsubscribe = subscribeToWebSocket();

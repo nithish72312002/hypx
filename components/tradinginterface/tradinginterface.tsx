@@ -12,7 +12,7 @@ import { BottomSheetBackdrop, BottomSheetModal, BottomSheetView } from '@gorhom/
 import Slider from '@react-native-community/slider';
 import { useTradingStore } from '@/store/useTradingStore';
 const { width } = Dimensions.get('window');
-import { usePerpWallet } from "@/store/usePerpWallet";
+import { usePerpPositionsStore } from "@/store/usePerpWallet";
 import { router } from 'expo-router';
 
 interface Leverage {
@@ -123,7 +123,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const { 
     positions,
     subscribeToWebSocket
-  } = usePerpWallet();
+  } = usePerpPositionsStore();
 
   useEffect(() => {
     const unsubscribe = subscribeToWebSocket();
@@ -146,16 +146,16 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
         return;
       }
 
-      const positionSize = Math.abs(currentPosition.size);
+      const positionSize = Math.abs(parseFloat(currentPosition.size));
       if (isBuy) {
         // If position is short (negative), allow buying to close
         // If position is long (positive), don't allow buying more
-        const maxSize = currentPosition.size < 0 ? positionSize : 0;
+        const maxSize = parseFloat(currentPosition.size) < 0 ? positionSize : 0;
         setMaxTradeSize(maxSize);
       } else {
         // If position is long (positive), allow selling to close
         // If position is short (negative), don't allow selling more
-        const maxSize = currentPosition.size > 0 ? positionSize : 0;
+        const maxSize = parseFloat(currentPosition.size) > 0 ? positionSize : 0;
         setMaxTradeSize(maxSize);
       }
     } 
@@ -346,39 +346,39 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
       setTradeStatus("SDK not initialized yet.");
       return;
     }
-    const sizeNum = parseFloat(size);
-    const priceNum = parseFloat(price);
+      const sizeNum = parseFloat(size);
+      const priceNum = parseFloat(price);
 
-    if (isNaN(sizeNum) || sizeNum <= 0) {
+      if (isNaN(sizeNum) || sizeNum <= 0) {
       setTradeStatus("Please enter a valid size");
-      return;
-    }
-    if (isNaN(priceNum) || priceNum <= 0) {
+        return;
+      }
+      if (isNaN(priceNum) || priceNum <= 0) {
       setTradeStatus("Please enter a valid price");
-      return;
-    }
+        return;
+      }
 
     // Set order type conditionally:
-    const orderTypeObject =
-      orderType === 'Market'
-        ? { limit: { tif: "FrontendMarket" } }
-        : { limit: { tif: "Gtc" } };
-        
-        console.log("Placing order with details:", {
-          coin: fullSymbol,
-          is_buy: isBuy,
-          sz: sizeNum,
-          limit_px: priceNum,
-          order_type: orderTypeObject,
-          reduce_only: isReduceOnly,
-        });
-    try {
-      const result = await sdk.exchange.placeOrder({ 
+      const orderTypeObject =
+        orderType === 'Market'
+          ? { limit: { tif: "FrontendMarket" } }
+          : { limit: { tif: "Gtc" } };
+
+      console.log("Placing order with details:", {
         coin: fullSymbol,
         is_buy: isBuy,
         sz: sizeNum,
         limit_px: priceNum,
         order_type: orderTypeObject,
+        reduce_only: isReduceOnly,
+      });
+    try {
+      const result = await sdk.exchange.placeOrder({
+          coin: fullSymbol,
+          is_buy: isBuy,
+          sz: sizeNum,
+          limit_px: priceNum,
+          order_type: orderTypeObject,
         reduce_only: false,
       });
       const error = result?.response?.data?.statuses?.[0]?.error;

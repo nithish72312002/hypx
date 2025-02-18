@@ -3,10 +3,14 @@ import { Hyperliquid } from "hyperliquid";
 import { useActiveAccount } from "thirdweb/react";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
 
-const HyperliquidContext = createContext(null);
+interface HyperliquidContextType {
+  sdk: Hyperliquid | null;
+}
 
-export const HyperliquidProvider = ({ children }) => {
-  const [sdk, setSdk] = useState(null);
+const HyperliquidContext = createContext<HyperliquidContextType>({ sdk: null });
+
+export const HyperliquidProvider = ({ children }: { children: React.ReactNode }) => {
+  const [sdk, setSdk] = useState<Hyperliquid | null>(null);
   const account = useActiveAccount();
   const { wallet, loading: walletLoading } = useAgentWallet();
 
@@ -29,7 +33,6 @@ export const HyperliquidProvider = ({ children }) => {
           privateKey: wallet.privateKey,
           walletAddress: account.address,
           testnet: true,
-          WebSocket: global.WebSocket
         });
 
         await instance.connect();
@@ -51,5 +54,9 @@ export const HyperliquidProvider = ({ children }) => {
 };
 
 export const useHyperliquid = () => {
-  return useContext(HyperliquidContext);
+  const context = useContext(HyperliquidContext);
+  if (!context) {
+    throw new Error("useHyperliquid must be used within a HyperliquidProvider");
+  }
+  return context;
 };
