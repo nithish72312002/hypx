@@ -18,6 +18,12 @@
       "associatedDomains": [
         "webcredentials:verify.hypx.xyz",
         "applinks:verify.hypx.xyz"
+      ],
+      "extraPods": [
+        {
+          "name": "OpenSSL-Universal",
+          "version": "3.1.5004"
+        }
       ]
     },
     "android": {

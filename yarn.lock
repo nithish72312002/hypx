@@ -7629,10 +7629,10 @@ expo-atlas@^0.3.0:
     serve-static "^1.15.0"
     stream-json "^1.8.0"
 
-expo-build-properties@0.12.5:
-  version "0.12.5"
-  resolved "https://registry.npmjs.org/expo-build-properties/-/expo-build-properties-0.12.5.tgz#4d6232389f00c846ba37ca5df2c0b5527c2d94ca"
-  integrity sha512-donC1le0PYfLKCPKRMGQoixuWuwDWCngzXSoQXUPsgHTDHQUKr8aw+lcWkTwZcItgNovcnk784I0dyfYDcxybA==
+expo-build-properties@^0.13.2:
+  version "0.13.2"
+  resolved "https://registry.npmjs.org/expo-build-properties/-/expo-build-properties-0.13.2.tgz#c9cef927fc8236551d940da4fd8dc1332e2d052d"
+  integrity sha512-ML2GwBgn0Bo4yPgnSGb7h3XVxCigS/KFdid3xPC2HldEioTP3UewB/2Qa4WBsam9Fb7lAuRyVHAfRoA3swpDzg==
   dependencies:
     ajv "^8.11.0"
     semver "^7.6.0"
