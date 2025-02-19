@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState, useMemo, memo } from "react";
 import {
   View,
   Text,
@@ -18,70 +18,94 @@ interface SpotTabProps {
   onUpdate?: (total: number, pnl: string) => void;
 }
 
-const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
+interface AssetItemProps {
+  item: {
+    coin: string;
+    total: string;
+    value: string;
+    pnlValue: number;
+    pnlPercentage: number;
+    avgCost: string;
+  };
+}
+
+const AssetItem = memo(({ item }: AssetItemProps) => {
+  const hasPNL = item.pnlValue !== 0;
+  const pnlSign = item.pnlValue >= 0 ? "+" : "-";
+
+  return (
+    <View style={styles.assetContainer}>
+      <View style={styles.assetHeader}>
+        <Text style={styles.assetName}>{item.coin}</Text>
+        <Text style={styles.assetAmount}>{item.total}</Text>
+      </View>
+      <View style={styles.detailRow}>
+        <View style={styles.avgCostColumn}>
+          <Text style={styles.detailLabel}>Avg. entry</Text>
+          <Text style={styles.detailValue}>{item.avgCost}</Text>
+        </View>
+        <View style={styles.valueColumn}>
+          <Text style={styles.detailLabel}>Value</Text>
+          <Text style={styles.detailValue}>${item.value}</Text>
+        </View>
+      </View>
+      {hasPNL && (
+        <View style={styles.pnlRow}>
+          <Text style={styles.detailLabel}>Today's PNL</Text>
+          <Text
+            style={[
+              styles.detailValue,
+              item.pnlValue >= 0 ? styles.positive : styles.negative,
+            ]}
+          >
+            {`${pnlSign}$${Math.abs(item.pnlValue).toFixed(2)} (${pnlSign}${Math.abs(
+              item.pnlPercentage
+            ).toFixed(2)}%)`}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+});
+
+export const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
   const account = useActiveAccount();
-  const { balances, totalValue, totalPnl, isLoading, error, subscribeToWebSocket } = useSpotWallet();
-
-  useEffect(() => {
-    const unsubscribe = subscribeToWebSocket();
-    return () => {
-      unsubscribe();
-    };
-  }, []);
-
+  const { balances, totalValue, totalPnl, isLoading, subscribeToWebSocket } = useSpotWallet();
+  const [scrollEnabledState, setScrollEnabledState] = useState(scrollEnabled);
   const onUpdateRef = useRef(onUpdate);
-  
+
   useEffect(() => {
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
 
   useEffect(() => {
+    console.log("[SpotTab] Component mounted, subscribing to WebSocket");
+    const unsubscribe = subscribeToWebSocket();
+
+    return () => {
+      console.log("[SpotTab] Component unmounting, unsubscribing from WebSocket");
+      unsubscribe();
+    };
+  }, [subscribeToWebSocket]);
+
+  useEffect(() => {
     if (onUpdateRef.current) {
       onUpdateRef.current(totalValue, totalPnl.toFixed(2));
     }
-  }, [totalValue, totalPnl]);
+  }, [balances, totalValue, totalPnl, isLoading]);
 
-  const renderAssetItem = ({ item }: { item: any }) => {
-    const hasPNL = item.pnlValue !== 0;
-    const isDummy = item.token < 0;
-    const pnlSign = item.pnlValue >= 0 ? "+" : "-";
+  useEffect(() => {
+    if (balances) {
+      console.log("[SpotTab] Balances updated:", balances.length, "assets");
+    }
+  }, [balances]);
 
-    return (
-      <View style={[styles.assetContainer, isDummy && styles.dummyAsset]}>
-        <View style={styles.assetHeader}>
-          <Text style={styles.assetName}>{item.coin}</Text>
-          <Text style={styles.assetAmount}>{item.total}</Text>
-        </View>
-        <View style={styles.detailRow}>
-          <View style={styles.avgCostColumn}>
-            <Text style={styles.detailLabel}>Avg. entry</Text>
-            <Text style={styles.detailValue}>{item.avgCost}</Text>
-          </View>
-          <View style={styles.valueColumn}>
-            <Text style={styles.detailLabel}>Value</Text>
-            <Text style={styles.detailValue}>${item.value}</Text>
-          </View>
-        </View>
-        {hasPNL && (
-          <View style={styles.pnlRow}>
-            <Text style={styles.detailLabel}>Today's PNL</Text>
-            <Text
-              style={[
-                styles.detailValue,
-                item.pnlValue >= 0 ? styles.positive : styles.negative,
-              ]}
-            >
-              {`${pnlSign}$${Math.abs(item.pnlValue).toFixed(2)} (${pnlSign}${Math.abs(
-                item.pnlPercentage
-              ).toFixed(2)}%)`}
-            </Text>
-          </View>
-        )}
-      </View>
-    );
-  };
+  const renderAssetItem = useMemo(() => ({ item }: { item: AssetItemProps["item"] }) => {
+    return <AssetItem item={item} />;
+  }, []);
 
   if (isLoading) {
+    console.log("[SpotTab] Rendering loading state");
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#16C784" />
@@ -90,39 +114,8 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
     );
   }
 
-  if (error) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
-
-  const dummyAssets = [
-    {
-      coin: 'USDC',
-      token: -1,
-      total: '0',
-      value: '0.00',
-      avgCost: 'N/A',
-      pnlValue: 0,
-      pnlPercentage: 0,
-    },
-    {
-      coin: 'HYPE',
-      token: -2,
-      total: '0',
-      value: '0.00',
-      avgCost: 'N/A',
-      pnlValue: 0,
-      pnlPercentage: 0,
-    },
-  ];
-
-  const displayAssets = balances.length > 0 ? balances : dummyAssets;
-
   return (
-    <ScrollView style={styles.wrapper}>
+    <ScrollView style={styles.wrapper} scrollEnabled={scrollEnabledState}>
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <View>
@@ -150,7 +143,7 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
       </View>
 
       <Text style={styles.sectionTitle}>Balances</Text>
-      {displayAssets.map((item) => (
+      {balances.map((item) => (
         <View key={`${item.token}-${item.coin}`}>
           {renderAssetItem({ item })}
         </View>
@@ -160,9 +153,6 @@ const SpotTab = ({ scrollEnabled, onUpdate }: SpotTabProps) => {
 };
 
 const styles = StyleSheet.create({
-  dummyAsset: {
-    opacity: 0.6,
-  },
   wrapper: {
     flex: 1,
     backgroundColor: '#1A1C24',

@@ -25,16 +25,11 @@ interface SortConfig {
 }
 
 const PerpPage: React.FC = () => {
-  const { tokens, isLoading, subscribeToWebSocket } = usePerpStore();
+  const { tokens, isLoading } = usePerpStore();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
   const router = useRouter();
 
-  useEffect(() => {
-    const unsubscribe = subscribeToWebSocket();
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+ 
 
   const handleNavigateToDetails = (symbol: string) => {
     const encodedSymbol = encodeURIComponent(symbol);

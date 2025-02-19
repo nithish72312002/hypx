@@ -1,16 +1,30 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity } from "react-native";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity, TextInput } from "react-native";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
 import WebSocketManager from "@/api/WebSocketManager";
 import { useHyperliquid } from "@/context/HyperliquidContext";
 import { useActiveAccount } from "thirdweb/react";
 import { OrderRequest, placeOrderl1 } from "@/utils/Signing";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
-import { BottomSheetModal, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { BottomSheetModal, BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { usePerpOrdersStore, usePerpPositionsStore, usePerpContextStore } from "@/store/usePerpWallet";
+import Ionicons from 'react-native-vector-icons/Ionicons';
 
 interface TradingInterfaceProps {
   symbol: string;
+}
+
+interface Leverage {
+  type: "cross" | "isolated";
+  value: number;
+}
+
+interface ModalData {
+  coin: string;
+  size: string;
+  entryPx: string;
+  markPx: string;
+  leverage: Leverage;
 }
 
 const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) => {
@@ -29,16 +43,122 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
   const [closeStatus, setcloseStatus] = useState<string | null>(null);
   const {wallet }= useAgentWallet()
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const snapPoints = ["50%"];
+  const snapPoints = useMemo(() => ['70%'], []);
   const [size, setSize] = useState('');
   const [price, setPrice] = useState('');
   const [orderType, setOrderType] = useState('Market');
   const [isBuy, setIsBuy] = useState(true);
   const [isReduceOnly, setIsReduceOnly] = useState(false);
+  const [modalData, setModalData] = useState<ModalData>({
+    coin: '',
+    size: '',
+    entryPx: '',
+    markPx: '',
+    leverage: {
+      type: 'cross',
+      value: 0
+    }
+  });
+  const [tpTriggerPrice, setTpTriggerPrice] = useState('');
+  const [tpPnL, setTpPnL] = useState('');
+  const [slTriggerPrice, setSlTriggerPrice] = useState('');
+  const [slPnL, setSlPnL] = useState('');
+  const [existingTpOrder, setExistingTpOrder] = useState<any>(null);
+  const [existingSlOrder, setExistingSlOrder] = useState<any>(null);
 
-  const handlePresentModal = useCallback(() => {
+  const calculatePnLFromPrice = (triggerPrice: string) => {
+    if (!triggerPrice || !modalData.entryPx || !modalData.size) return '';
+    
+    const entry = Number(modalData.entryPx);
+    const trigger = Number(triggerPrice);
+    const size = Number(modalData.size);
+    
+    // PnL = (Exit Price - Entry Price) * Size for longs
+    // PnL = (Entry Price - Exit Price) * Size for shorts
+    const pnl = size > 0 
+      ? (trigger - entry) * Math.abs(size)
+      : (entry - trigger) * Math.abs(size);
+    
+    return pnl.toFixed(2);
+  };
+
+  const calculatePriceFromPnL = (pnl: string) => {
+    if (!pnl || !modalData.entryPx || !modalData.size) return '';
+    
+    const entry = Number(modalData.entryPx);
+    const targetPnL = Number(pnl);
+    const size = Number(modalData.size);
+    
+    // For longs: Exit Price = (PnL / Size) + Entry Price
+    // For shorts: Exit Price = Entry Price - (PnL / Size)
+    const triggerPrice = size > 0
+      ? (targetPnL / Math.abs(size)) + entry
+      : entry - (targetPnL / Math.abs(size));
+    
+    return triggerPrice.toFixed(2);
+  };
+
+  const handleTpTriggerPriceChange = (value: string) => {
+    setTpTriggerPrice(value);
+    const calculatedPnL = calculatePnLFromPrice(value);
+    setTpPnL(calculatedPnL);
+  };
+
+  const handleTpPnLChange = (value: string) => {
+    setTpPnL(value);
+    const calculatedPrice = calculatePriceFromPnL(value);
+    setTpTriggerPrice(calculatedPrice);
+  };
+
+  const handleSlTriggerPriceChange = (value: string) => {
+    setSlTriggerPrice(value);
+    const calculatedPnL = calculatePnLFromPrice(value);
+    // Make PnL negative for stop loss
+    setSlPnL(calculatedPnL ? (-Math.abs(Number(calculatedPnL))).toFixed(2) : '');
+  };
+
+  const handleSlPnLChange = (value: string) => {
+    // Remove any negative signs from input and make it negative
+    const positiveValue = value.replace('-', '');
+    setSlPnL('-' + positiveValue);
+    const calculatedPrice = calculatePriceFromPnL('-' + positiveValue);
+    setSlTriggerPrice(calculatedPrice);
+  };
+  const { 
+    openOrders = []
+  } = usePerpOrdersStore();
+
+  const handlePresentModal = useCallback((coin: string, size: string, entryPx: string, markPx: string, leverage: Leverage) => {
+    setModalData({ coin, size, entryPx, markPx, leverage });
+    
+    // Find existing TP/SL orders for this position
+    const positionTpSlOrders = openOrders.filter(order => 
+      order.coin === coin && 
+      order.isTrigger && 
+      order.isPositionTpsl &&
+      order.sz === "0.0"  // This is specific to TP/SL orders
+    );
+
+    console.log('Found TP/SL orders:', positionTpSlOrders);
+
+    // Set existing TP and SL orders
+    const tp = positionTpSlOrders.find(order => order.orderType === "Take Profit Market");
+    const sl = positionTpSlOrders.find(order => order.orderType === "Stop Market");
+    
+    console.log('Found TP order:', tp);
+    console.log('Found SL order:', sl);
+    
+    setExistingTpOrder(tp || null);
+    setExistingSlOrder(sl || null);
+    
+    // Clear input fields if there are existing orders
+    setTpTriggerPrice('');
+    setSlTriggerPrice('');
+    setTpPnL('');
+    setSlPnL('');
+    
     bottomSheetModalRef.current?.present();
-  }, []);
+  }, [openOrders]);
 
   const handleDismissModal = useCallback(() => {
     bottomSheetModalRef.current?.dismiss();
@@ -50,14 +170,13 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
         {...props}
         appearsOnIndex={0}
         disappearsOnIndex={-1}
+        opacity={0.5}
       />
     ),
     []
   );
 
-  const { 
-    openOrders = []
-  } = usePerpOrdersStore();
+  
 
   const { 
     positions = []
@@ -101,16 +220,35 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
 
   const cancelOrder = async (oid: number, coin: string) => {
     if (!sdk) {
+      console.log("Cancel order failed: SDK not initialized");
       setcancelStatus("SDK not initialized yet.");
       return;
     }
     const cancelsymbol = `${coin}-PERP`;
     try {
+      console.log("Attempting to cancel order:", oid);
       const result = await sdk.exchange.cancelOrder({
         coin: cancelsymbol,
         o: oid,
       });
+      console.log("Cancel order response:", result);
       const error = result?.response?.data?.statuses?.[0]?.error;
+      
+      // If order cancellation was successful, update the TP/SL states
+      if (!error) {
+        // Check if the cancelled order was a TP or SL order
+        if (existingTpOrder && existingTpOrder.oid === oid) {
+          setExistingTpOrder(null);
+          setTpTriggerPrice('');
+          setTpPnL('');
+        }
+        if (existingSlOrder && existingSlOrder.oid === oid) {
+          setExistingSlOrder(null);
+          setSlTriggerPrice('');
+          setSlPnL('');
+        }
+      }
+      
       setcancelStatus(
         error ? `Failed to cancel order: ${error}` : "Order cancelled successfully!"
       );
@@ -126,7 +264,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
       return;
     }
     try {
-      console.log("Attempting to close all positions...");
+      console.log("Attempting to cancell all positions...");
       const result = await sdk.custom.cancelAllOrders();
       console.log("Close all positions response:", result);
       if (result && Array.isArray(result)) {
@@ -217,43 +355,107 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
     }
   };
 
-  const handletpsl = async () => {
+  const handletpsl = async (coin: string, size: string, entryPx: string, markPx: string) => {
+    console.log('Starting handletpsl with params:', { coin, size, entryPx, markPx });
+    
     if (!sdk) {
+      console.error('SDK not initialized');
       return;
     }
+
     const sizeNum = parseFloat(size);
-    const priceNum = parseFloat(price);
+    const tpprice = tpTriggerPrice ? parseFloat(tpTriggerPrice) : 0;
+    const slprice = slTriggerPrice ? parseFloat(slTriggerPrice) : 0;
+    console.log('Parsed values:', {
+      sizeNum,
+      tpprice,
+      slprice,
+      tpTriggerPrice,
+      slTriggerPrice
+    });
+
     if (isNaN(sizeNum) || sizeNum <= 0) {
+      console.error('Invalid size:', { sizeNum });
       return;
     }
-    if (isNaN(priceNum) || priceNum <= 0) {
+
+    // Validate prices only if they are set
+    if (tpTriggerPrice && (isNaN(tpprice) || tpprice <= 0)) {
+      console.error('Invalid TP price:', { tpprice });
       return;
     }
-    const orderTypeObject =
-      orderType === 'Market'
-        ? { limit: { tif: "FrontendMarket" } }
-        : { limit: { tif: "Gtc" } };
+    if (slTriggerPrice && (isNaN(slprice) || slprice <= 0)) {
+      console.error('Invalid SL price:', { slprice });
+      return;
+    }
+
+    // If neither TP nor SL is set, return
+    if (!tpTriggerPrice && !slTriggerPrice) {
+      console.error('Neither TP nor SL price is set');
+      return;
+    }
+
+    const fullSymbol = `${coin}-PERP`;
+    console.log('Placing order for symbol:', fullSymbol);
+
     try {
+      // Determine if this is a long position by checking if size is positive
+      const isLongPosition = Number(size) > 0;
+      
+      console.log('Order request params:', {
+        orders: [
+          ...(tpTriggerPrice ? [{
+            coin: fullSymbol,
+            is_buy: isLongPosition ? false : true,  // For long: sell at TP, For short: buy at TP
+            sz: Math.abs(sizeNum),
+            limit_px: tpprice,
+            order_type: { trigger: { triggerPx: tpprice, isMarket: true, tpsl: "tp" } },
+            reduce_only: true
+          }] : []),
+          ...(slTriggerPrice ? [{
+            coin: fullSymbol,
+            is_buy: isLongPosition ? false : true,  // For long: sell at SL, For short: buy at SL
+            sz: Math.abs(sizeNum),
+            limit_px: slprice,
+            order_type: { trigger: { triggerPx: slprice, isMarket: true, tpsl: "sl" } },
+            reduce_only: true
+          }] : [])
+        ],
+        grouping: "positionTpsl"
+      });
+
       const result = await sdk.exchange.placeOrder({
-        orders: [{
-          coin: 'BTC-PERP',
-          is_buy: true,
-          sz: 1,
-          limit_px: 30000,
-          order_type: { limit: { tif: 'Gtc' } },
-          reduce_only: false
-        }],
-        grouping: 'positionTpsl',
-        builder: {
-          address: '0x...',
-          fee: 999,
-        }
-      })
+        orders: [
+          ...(tpTriggerPrice ? [{
+            coin: fullSymbol,
+            is_buy: isLongPosition ? false : true,  // For long: sell at TP, For short: buy at TP
+            sz: 0,
+            limit_px: tpprice,
+            order_type: { trigger: { triggerPx: tpprice, isMarket: true, tpsl: "tp" } },
+            reduce_only: true
+          }] : []),
+          ...(slTriggerPrice ? [{
+            coin: fullSymbol,
+            is_buy: isLongPosition ? false : true,  // For long: sell at SL, For short: buy at SL
+            sz: 0,
+            limit_px: slprice,
+            order_type: { trigger: { triggerPx: slprice, isMarket: true, tpsl: "sl" } },
+            reduce_only: true
+          }] : [])
+        ],
+        grouping: "positionTpsl"
+      });
+      console.log('Order placement complete. Full result:', JSON.stringify(result, null, 2));
+      
       const error = result?.response?.data?.statuses?.[0]?.error;
-      console.log("Order result:", result);
-      console.log("Error:", error);
-    } catch (error: any) {
-      console.log(`Failed to place order: ${error.message ?? "Unknown error"}`);
+      if (error) {
+        console.error('Order placement error:', error);
+      } else {
+        console.log('Order placed successfully');
+        bottomSheetModalRef.current?.dismiss();
+      }
+    } catch (err) {
+      console.error('Exception in handletpsl:', err);
     }
   };
 
@@ -275,14 +477,13 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
       </View>
       <ScrollView nestedScrollEnabled={true}>
         {(openOrders || []).filter((order) =>
-          order.isTrigger === (subIndex === 1) &&
           (!hideOtherSymbols || order.coin === symbol) &&
           (!order.coin.includes("/") && !order.coin.includes("@"))
         )
         .map((order) => (
           <View key={order.oid} style={styles.orderItem}>
             <View style={styles.orderHeader}>
-              <Text style={styles.orderCoin}>{order.coin}USDT</Text>
+              <Text style={styles.orderCoin}>{order.coin}USDC</Text>
               <Text style={styles.orderType}>
                 {order.orderType} / {order.side === "A" ? "Sell" : "Buy"}
               </Text>
@@ -372,7 +573,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
                   <View style={styles.detailsColumn}>
                     <DetailRow label="Size (BTC)" value={pos.size} />
                     <DetailRow
-                      label="Margin (USDT)"
+                      label="Margin (USDC)"
                       value={pos.marginUsed}
                     />
                     <DetailRow
@@ -402,7 +603,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
                   <Text style={styles.leverageLabel}>
                     Leverage {pos.leverage.value}x
                   </Text>
-                  <TouchableOpacity style={styles.tpslButton} onPress={handlePresentModal}>
+                  <TouchableOpacity style={styles.tpslButton} onPress={() => handlePresentModal(pos.coin, pos.size, pos.entryPx, pos.markPx, pos.leverage)}>
                     <Text style={styles.tpslText}>TP/SL</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={styles.closeButton} onPress={() => closePosition(pos.coin)}>
@@ -452,9 +653,161 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
         backdropComponent={renderBackdrop}
         backgroundStyle={styles.bottomSheetBackground}
       >
-        <View style={styles.bottomSheetContent}>
-          <Text style={styles.bottomSheetTitle}>Set TP/SL</Text>
-        </View>
+        <BottomSheetView style={styles.bottomSheetContent}>
+          <ScrollView 
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.bottomSheetTitle}>Set TP/SL</Text>
+              <TouchableOpacity onPress={handleDismissModal}>
+                <Ionicons name="close" size={24} color="#808A9D" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.infoContainer}>
+              <View style={styles.symbolContainer}>
+                <Text style={styles.labelText}>Symbol</Text>
+                <View style={styles.symbolValueContainer}>
+                  <Text style={styles.valueText}>{modalData.coin}</Text>
+                  <Text style={styles.perpText}>Perp</Text>
+                  <Text style={[styles.leverageText, { color: Number(modalData.size) > 0 ? '#00C087' : '#FF3B30' }]}>
+                    {Number(modalData.size) > 0 ? 'Long' : 'Short'} {modalData.leverage.value}x
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.priceContainer}>
+                <Text style={styles.labelText}>Entry Price (USDC)</Text>
+                <Text style={styles.valueText}>{modalData.entryPx}</Text>
+              </View>
+
+              <View style={styles.priceContainer}>
+                <Text style={styles.labelText}>Mark Price (USDC)</Text>
+                <Text style={styles.valueText}>{modalData.markPx}</Text>
+              </View>
+            </View>
+
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Take Profit</Text>
+              </View>
+              
+              {existingTpOrder ? (
+                <View style={styles.existingOrderContainer}>
+                  <View style={styles.existingOrderRow}>
+                    <Text style={styles.existingOrderValue}>{existingTpOrder.triggerCondition}</Text>
+                    <TouchableOpacity 
+                      style={styles.cancelOrderButton}
+                      onPress={() => cancelOrder(existingTpOrder.oid, existingTpOrder.coin)}
+                    >
+                      <Text style={styles.cancelOrderText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.expectedProfitRow}>
+                    <Text style={styles.expectedProfitText}>
+                    Expected profit:{Number(calculatePnLFromPrice(existingTpOrder.triggerPx)).toFixed(2)} USDC ({((Number(existingTpOrder.triggerPx) - Number(modalData.entryPx)) / Number(modalData.entryPx) * 100).toFixed(2)}%)
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.inputGroup}>
+                  <View style={styles.inputRow}>
+                    <View style={styles.triggerInput}>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Trigger Price"
+                        placeholderTextColor="#8F98A3"
+                        keyboardType="numeric"
+                        value={tpTriggerPrice}
+                        onChangeText={handleTpTriggerPriceChange}
+                      />
+                    </View>
+                    <View style={styles.pnlInputContainer}>
+                      <View style={styles.pnlInput}>
+                        <TextInput
+                          style={styles.input}
+                          placeholder="PnL"
+                          placeholderTextColor="#8F98A3"
+                          keyboardType="numeric"
+                          value={tpPnL}
+                          onChangeText={handleTpPnLChange}
+                        />
+                      </View>
+                      <TouchableOpacity style={styles.USDCSelector}>
+                        <Text style={styles.USDCText}>USDC</Text>
+                        <Text style={styles.dropdownIcon}>▼</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Stop Loss</Text>
+              </View>
+              
+              {existingSlOrder ? (
+                <View style={styles.existingOrderContainer}>
+                  <View style={styles.existingOrderRow}>
+                    <Text style={styles.existingOrderValue}>{existingSlOrder.triggerCondition}</Text>
+                    <TouchableOpacity 
+                      style={styles.cancelOrderButton}
+                      onPress={() => cancelOrder(existingSlOrder.oid, existingSlOrder.coin)}
+                    >
+                      <Text style={styles.cancelOrderText}>Cancel</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.expectedProfitRow}>
+                    <Text style={styles.expectedProfitText}>
+                    Expected profit:{Number(calculatePnLFromPrice(existingSlOrder.triggerPx)).toFixed(2)} USDC ({((Number(existingSlOrder.triggerPx) - Number(modalData.entryPx)) / Number(modalData.entryPx) * 100).toFixed(2)}%)
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.inputGroup}>
+                  <View style={styles.inputRow}>
+                    <View style={styles.triggerInput}>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Trigger Price"
+                        placeholderTextColor="#8F98A3"
+                        keyboardType="numeric"
+                        value={slTriggerPrice}
+                        onChangeText={handleSlTriggerPriceChange}
+                      />
+                    </View>
+                    <View style={styles.pnlInputContainer}>
+                      <View style={styles.pnlInput}>
+                        <TextInput
+                          style={styles.input}
+                          placeholder="PnL"
+                          placeholderTextColor="#8F98A3"
+                          keyboardType="numeric"
+                          value={slPnL}
+                          onChangeText={handleSlPnLChange}
+                        />
+                      </View>
+                      <TouchableOpacity style={styles.USDCSelector}>
+                        <Text style={styles.USDCText}>USDC</Text>
+                        <Text style={styles.dropdownIcon}>▼</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              )}
+            </View>
+
+           
+
+            <TouchableOpacity style={styles.confirmButton}onPress={() => handletpsl(modalData.coin, modalData.size, modalData.entryPx, modalData.markPx)}>
+              <Text style={styles.confirmButtonText}>Confirm</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </BottomSheetView>
       </BottomSheetModal>
     </View>
   );
@@ -535,7 +888,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   coinText: { color: "#FFFFFF", fontWeight: "500" },
-  leverageText: { color: "#8E8E93", fontSize: 12 },
+  leverageText: {  fontSize: 12 },
   pnlContainer: { alignItems: "flex-end" },
   pnlText: { fontSize: 14, fontWeight: "500", color: "#FF3B30" },
   pnlPercent: { fontSize: 12, color: "#FF3B30" },
@@ -608,17 +961,190 @@ const styles = StyleSheet.create({
     fontSize: 14 
   },
   bottomSheetBackground: {
-    backgroundColor: '#13141B',
+    backgroundColor: '#1A1C24',
   },
   bottomSheetContent: {
     flex: 1,
     padding: 16,
   },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   bottomSheetTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontWeight: '600',
     color: '#FFFFFF',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    padding: 16,
+  },
+  infoContainer: {
     marginBottom: 16,
+  },
+  symbolContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  labelText: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  symbolValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  valueText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  perpText: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionContainer: {
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    color: '#8E8E93',
+  },
+  markButton: {
+    backgroundColor: '#1E1F26',
+    padding: 4,
+    borderRadius: 3,
+  },
+  markButtonText: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  inputGroup: {
+    marginBottom: 8,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  triggerInput: {
+    flex: 1,
+    backgroundColor: '#2A2E37',
+    borderRadius: 4,
+    padding: 12,
+    height: 40,
+  },
+  pnlInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 8,
+  },
+  pnlInput: {
+    flex: 1,
+    backgroundColor: '#2A2E37',
+    borderRadius: 4,
+    padding: 12,
+    height: 40,
+  },
+  USDCSelector: {
+    backgroundColor: '#2A2E37',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    height: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  input: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    padding: 0,
+    height: '100%',
+  },
+  USDCText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+  },
+  dropdownIcon: {
+    color: '#8F98A3',
+    fontSize: 12,
+  },
+  descriptionText: {
+    fontSize: 12,
+    color: '#8E8E93',
+    marginBottom: 16,
+  },
+  helpContainer: {
+    backgroundColor: '#1E1F26',
+    padding: 8,
+    borderRadius: 4,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#8E8E93',
+  },
+  confirmButton: {
+    backgroundColor: '#FFB800',
+    padding: 12,
+    borderRadius: 4,
+    alignItems: 'center',
+  },
+  confirmButtonText: {
+    fontSize: 14,
+    color: '#000000',
+    fontWeight: '600',
+  },
+  existingOrderContainer: {
+    backgroundColor: '#1E2328',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    gap: 8,
+  },
+  existingOrderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  existingOrderValue: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  expectedProfitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  expectedProfitText: {
+    color: '#808A9D',
+    fontSize: 13,
+  },
+  cancelOrderButton: {
+    backgroundColor: 'transparent',
+    padding: 4,
+    marginLeft: 8,
+  },
+  cancelOrderText: {
+    color: '#808A9D',
+    fontSize: 14,
   },
 });
 

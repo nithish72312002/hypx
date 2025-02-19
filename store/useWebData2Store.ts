@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import WebSocketManager from "@/api/WebSocketManager";
-
+import { useActiveAccount } from "thirdweb/react";
 interface WebData2Store {
   rawData: any;
   isConnected: boolean;
@@ -9,21 +9,28 @@ interface WebData2Store {
 
 export const useWebData2Store = create<WebData2Store>((set, get) => {
   const wsManager = WebSocketManager.getInstance();
+  let previousData: any = null;
 
   const listener = (data: any) => {
-    set((state) => ({ rawData: data }));
+    if (JSON.stringify(data) !== JSON.stringify(previousData)) {
+      previousData = data;
+      set((state) => ({ 
+        rawData: data,
+        isConnected: true
+      }));
+    }
   };
 
   return {
     rawData: null,
     isConnected: false,
     subscribeToWebSocket: () => {
-      set({ isConnected: true });
       wsManager.addListener("webData2", listener);
-      
+      set({ isConnected: true });
       return () => {
         wsManager.removeListener("webData2", listener);
         set({ isConnected: false, rawData: null });
+        previousData = null;
       };
     },
   };

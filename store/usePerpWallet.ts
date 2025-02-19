@@ -1,6 +1,7 @@
 // Split into three stores but share WebSocket subscription
 import { create } from "zustand";
 import { useWebData2Store } from "./useWebData2Store";
+import { debounce } from 'lodash';
 
 interface PerpAsset {
   coin: string;
@@ -70,12 +71,28 @@ interface PerpContextState {
   subscribeToWebSocket: () => () => void;
 }
 
+// Cache for meta universe data
+let metaUniverseCache: any[] | null = null;
+let isFetchingMeta = false;
+
 // Orders Store
 export const usePerpOrdersStore = create<PerpOrdersState>((set) => {
-  const processWebData2 = (data: any) => {
+  let previousOrders: Order[] = [];
+
+  const processWebData2 = debounce((data: any) => {
     if (!data?.openOrders) return;
-    set({ openOrders: data.openOrders });
-  };
+    
+    try {
+      // Only update if orders have changed
+      const newOrders = data.openOrders;
+      if (JSON.stringify(newOrders) !== JSON.stringify(previousOrders)) {
+        previousOrders = newOrders;
+        set({ openOrders: newOrders });
+      }
+    } catch (err) {
+      console.error("[PerpOrders] Error processing orders:", err);
+    }
+  }, 100);
 
   return {
     openOrders: [],
@@ -92,8 +109,10 @@ export const usePerpOrdersStore = create<PerpOrdersState>((set) => {
       );
 
       return () => {
+        processWebData2.cancel();
         unsubscribe();
         unsubscribeStore();
+        previousOrders = [];
       };
     }
   };
@@ -101,10 +120,15 @@ export const usePerpOrdersStore = create<PerpOrdersState>((set) => {
 
 // Positions Store
 export const usePerpPositionsStore = create<PerpPositionsState>((set) => {
-  const processWebData2 = (data: any) => {
+  let previousPositions: any = null;
+  let pendingData: any = null;
+  
+  const processWebData2 = debounce((data: any) => {
     try {
       if (!data?.clearinghouseState) {
-        set({ isLoading: false, error: "No clearinghouse state found" });
+        if (!previousPositions) {
+          set({ isLoading: false, error: "No clearinghouse state found" });
+        }
         return;
       }
 
@@ -128,45 +152,43 @@ export const usePerpPositionsStore = create<PerpPositionsState>((set) => {
           const universeIndex = data.meta?.universe?.findIndex((u: any) => u.name === position.coin) ?? -1;
           const ctx = universeIndex !== -1 ? data.assetCtxs?.[universeIndex] : null;
           
-          const markPx = parseFloat(ctx?.markPx || "0");
-          const size = parseFloat(position.szi || "0");
-          const entryPx = parseFloat(position.entryPx || "0");
-          const unrealizedPnl = parseFloat(position.unrealizedPnl || "0");
-          const marginUsed = parseFloat(position.marginUsed || "0");
-          const positionValue = parseFloat(position.positionValue || "0");
-          const returnOnEquity = parseFloat(position.returnOnEquity || "0") * 100;
-
           return {
             coin: position.coin,
-            size,
-            entryPx,
-            unrealizedPnl,
+            size: parseFloat(position.szi || "0"),
+            entryPx: parseFloat(position.entryPx || "0"),
+            unrealizedPnl: parseFloat(position.unrealizedPnl || "0"),
             liquidationPx: position.liquidationPx,
-            marginUsed,
-            returnOnEquity,
+            marginUsed: parseFloat(position.marginUsed || "0"),
+            returnOnEquity: parseFloat(position.returnOnEquity || "0") * 100,
             leverage: position.leverage || { type: "cross", value: 1 },
-            markPx,
-            positionValue,
+            markPx: parseFloat(ctx?.markPx || "0"),
+            positionValue: parseFloat(position.positionValue || "0"),
             maxLeverage: position.maxLeverage,
             cumFunding: position.cumFunding
           };
         }) || [];
 
-      const totalPnl = formattedPositions.reduce((acc: number, pos: PerpPosition) => acc + parseFloat(pos.unrealizedPnl), 0);
+      const totalPnl = formattedPositions.reduce((acc: number, pos: PerpPosition) => acc + pos.unrealizedPnl, 0);
 
-      set({
+      const newState = {
         positions: formattedPositions,
         accountValue,
         totalPnl,
         assets: formattedAssets,
         isLoading: false,
         error: null
-      });
+      };
+
+      // Only update if state has changed
+      if (JSON.stringify(newState) !== JSON.stringify(previousPositions)) {
+        previousPositions = newState;
+        set(newState);
+      }
     } catch (err) {
       console.error("[PerpPositions] Error processing data:", err);
       set({ error: "Error processing positions data", isLoading: false });
     }
-  };
+  }, 100);
 
   return {
     positions: [],
@@ -189,8 +211,13 @@ export const usePerpPositionsStore = create<PerpPositionsState>((set) => {
       );
 
       return () => {
-        unsubscribe();
+        processWebData2.cancel();
+        if (unsubscribe) {
+          unsubscribe();
+        }
         unsubscribeStore();
+        previousPositions = null;
+        pendingData = null;
       };
     }
   };
@@ -198,24 +225,62 @@ export const usePerpPositionsStore = create<PerpPositionsState>((set) => {
 
 // Context Store
 export const usePerpContextStore = create<PerpContextState>((set) => {
-  const processWebData2 = (data: any) => {
-    const updates: Partial<PerpContextState> = {};
-    let hasUpdates = false;
+  let previousContext: any = null;
 
-    if (data.assetCtxs) {
-      updates.assetContexts = data.assetCtxs;
-      hasUpdates = true;
+  const fetchMetaUniverse = async () => {
+    if (isFetchingMeta || metaUniverseCache) {
+      return metaUniverseCache;
     }
 
-    if (data.meta?.universe) {
-      updates.metaUniverse = data.meta.universe;
-      hasUpdates = true;
-    }
-
-    if (hasUpdates) {
-      set(updates);
+    try {
+      isFetchingMeta = true;
+      const response = await fetch("https://api.hyperliquid-testnet.xyz/info", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "metaAndAssetCtxs" }),
+      });
+      const data = await response.json();
+      metaUniverseCache = data[0].universe;
+      return metaUniverseCache;
+    } catch (err) {
+      console.error("[PerpContext] Error fetching meta universe:", err);
+      return null;
+    } finally {
+      isFetchingMeta = false;
     }
   };
+
+  const processWebData2 = debounce(async (data: any) => {
+    try {
+      if (!data?.meta?.universe) {
+        const metaUniverse = await fetchMetaUniverse();
+        if (!metaUniverse) return;
+        
+        const newState = {
+          assetContexts: data?.assetCtxs || [],
+          metaUniverse
+        };
+
+        if (JSON.stringify(newState) !== JSON.stringify(previousContext)) {
+          previousContext = newState;
+          set(newState);
+        }
+        return;
+      }
+
+      const newState = {
+        assetContexts: data.assetCtxs || [],
+        metaUniverse: data.meta.universe
+      };
+
+      if (JSON.stringify(newState) !== JSON.stringify(previousContext)) {
+        previousContext = newState;
+        set(newState);
+      }
+    } catch (err) {
+      console.error("[PerpContext] Error processing context:", err);
+    }
+  }, 100);
 
   return {
     assetContexts: [],
@@ -223,7 +288,7 @@ export const usePerpContextStore = create<PerpContextState>((set) => {
     subscribeToWebSocket: () => {
       const webData2Store = useWebData2Store.getState();
       const unsubscribe = webData2Store.subscribeToWebSocket();
-      
+
       const unsubscribeStore = useWebData2Store.subscribe(
         (state) => {
           if (state.rawData) {
@@ -233,8 +298,12 @@ export const usePerpContextStore = create<PerpContextState>((set) => {
       );
 
       return () => {
-        unsubscribe();
+        processWebData2.cancel();
+        if (unsubscribe) {
+          unsubscribe();
+        }
         unsubscribeStore();
+        previousContext = null;
       };
     }
   };

@@ -1,7 +1,7 @@
 import { create } from "zustand";
-import WebSocketManager from "@/api/WebSocketManager";
 import axios from "axios";
 import { useWebData2Store } from "./useWebData2Store";
+import { debounce } from 'lodash';
 
 interface SpotTokenData {
   id: string;
@@ -29,26 +29,33 @@ let isFetchingMapping = false;
 let pendingData: any = null;
 
 export const useSpotStore = create<SpotStore>((set, get) => {
+  let previousTokens: SpotTokenData[] = [];
+
   const parseTokenMapping = (apiResponse: any) => {
+    if (!apiResponse?.[0]) return {};
+
     const mapping: { [key: string]: string } = {};
-    const tokensArray = apiResponse[0]?.tokens || [];
-    const universeArray = apiResponse[0]?.universe || [];
+    const tokensArray = apiResponse[0].tokens || [];
+    const universeArray = apiResponse[0].universe || [];
 
     const tokenNameByIndex: { [key: number]: string } = {};
     tokensArray.forEach((token: any) => {
-      tokenNameByIndex[token.index] = token.name;
+      if (token?.index && token?.name) {
+        tokenNameByIndex[token.index] = token.name;
+      }
     });
 
     universeArray.forEach((pair: any) => {
-      const [firstTokenIndex] = pair.tokens;
-      const resolvedName = tokenNameByIndex[firstTokenIndex] || "Unknown";
-      mapping[pair.name] = resolvedName;
+      if (pair?.tokens?.[0] && pair?.name) {
+        const resolvedName = tokenNameByIndex[pair.tokens[0]] || "Unknown";
+        mapping[pair.name] = resolvedName;
+      }
     });
 
     return mapping;
   };
 
-  const processWebData2 = (data: any) => {
+  const processWebData2 = debounce((data: any) => {
     try {
       const { spotAssetCtxs } = data;
       if (!spotAssetCtxs || !Array.isArray(spotAssetCtxs)) {
@@ -62,6 +69,10 @@ export const useSpotStore = create<SpotStore>((set, get) => {
       }
 
       const formattedTokens = spotAssetCtxs
+        .filter((ctx: any) => {
+          const volume = ctx.dayBaseVlm !== undefined ? parseFloat(ctx.dayBaseVlm) : 0;
+          return volume > 0;
+        })
         .map((ctx: any) => {
           const {
             coin,
@@ -89,25 +100,21 @@ export const useSpotStore = create<SpotStore>((set, get) => {
             totalSupply: parseFloat(totalSupply || '0')
           };
         })
-        .filter((token: SpotTokenData) => token.volume > 0)
         .sort((a, b) => b.usdvolume - a.usdvolume);
 
-      set({ tokens: formattedTokens, isLoading: false });
+      // Only update if tokens have changed
+      if (JSON.stringify(formattedTokens) !== JSON.stringify(previousTokens)) {
+        previousTokens = formattedTokens;
+        set({ tokens: formattedTokens, isLoading: false });
+      }
     } catch (err) {
       console.error("[SpotStore] Error processing data:", err);
       set({ isLoading: false });
     }
-  };
+  }, 100);
 
   const fetchTokenMapping = async () => {
-    if (tokenMappingCache || isFetchingMapping) {
-      if (tokenMappingCache) {
-        set({ tokenMapping: tokenMappingCache });
-        if (pendingData) {
-          processWebData2(pendingData);
-          pendingData = null;
-        }
-      }
+    if (isFetchingMapping || tokenMappingCache) {
       return;
     }
 
@@ -119,14 +126,13 @@ export const useSpotStore = create<SpotStore>((set, get) => {
       const mapping = parseTokenMapping(response.data);
       tokenMappingCache = mapping;
       set({ tokenMapping: mapping });
-      
+
       if (pendingData) {
         processWebData2(pendingData);
         pendingData = null;
       }
     } catch (err) {
       console.error("[SpotStore] Error fetching token mapping:", err);
-      set({ isLoading: false });
     } finally {
       isFetchingMapping = false;
     }
@@ -136,21 +142,30 @@ export const useSpotStore = create<SpotStore>((set, get) => {
     tokens: [],
     isLoading: true,
     tokenMapping: {},
-    setTokens: (tokens) => set({ tokens }),
+    setTokens: (tokens: SpotTokenData[]) => {
+      if (JSON.stringify(tokens) !== JSON.stringify(previousTokens)) {
+        previousTokens = tokens;
+        set({ tokens });
+      }
+    },
     fetchTokenMapping,
     subscribeToWebSocket: () => {
       const webData2Store = useWebData2Store.getState();
       const unsubscribe = webData2Store.subscribeToWebSocket();
       
-      const unsubscribeStore = useWebData2Store.subscribe((state) => {
-        if (state.rawData) {
-          processWebData2(state.rawData);
+      const unsubscribeStore = useWebData2Store.subscribe(
+        (state) => {
+          if (state.rawData) {
+            processWebData2(state.rawData);
+          }
         }
-      });
+      );
 
       return () => {
+        processWebData2.cancel();
         unsubscribe();
         unsubscribeStore();
+        previousTokens = [];
       };
     },
   };

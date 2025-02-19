@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Dimensions, Alert } from 'react-native';
 import { useActiveAccount } from 'thirdweb/react';
 import WebSocketManager from '@/api/WebSocketManager';
 import { useHyperliquid } from '@/context/HyperliquidContext';
@@ -60,25 +60,51 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
     }
 
     setIsConnecting(true);
+    setApprovalCompleted(false); // Reset approval state at the start
+
     try {
       // Create wallet if we don't have one
       if (!wallet?.address) {
         console.log("Creating wallet...");
         await createWallet();
+        
+        // Verify wallet was created
+        if (!wallet?.address) {
+          throw new Error('Failed to create wallet');
+        }
       }
 
-      // Only proceed with approval if we're not already connecting
-      if (!isConnecting && wallet?.address) {
+      // Only proceed with approval if we have a wallet address
+      if (wallet?.address) {
         try {
           console.log("Approving agent...");
           await approveAgent();
+          
+          // Only set approval if we get here (no errors thrown)
           setApprovalCompleted(true);
           setIsConnectionModalVisible(false);
         } catch (error: any) {
+          console.error('Connection error:', error);
+          // Explicitly set approval to false and handle modal
+          setApprovalCompleted(false);
           if (error.message?.includes('Must deposit')) {
             setIsConnectionModalVisible(true);
+          } else {
+            setIsConnectionModalVisible(false);
+            Alert.alert(
+              'Connection Error',
+              'Failed to establish connection. Please try again.'
+            );
           }
+          throw error; // Re-throw to ensure we don't proceed
         }
+      }
+    } catch (error: any) {
+      console.error('Establish connection error:', error);
+      setApprovalCompleted(false);
+      // Don't hide modal if it's a deposit requirement
+      if (!error.message?.includes('Must deposit')) {
+        setIsConnectionModalVisible(false);
       }
     } finally {
       setIsConnecting(false);

@@ -53,11 +53,9 @@ const FuturesTab = ({ scrollEnabled, onUpdate }: FuturesTabProps) => {
   useEffect(() => {
     const unsubscribe = subscribeToWebSocket();
     return () => {
-      if (unsubscribe) {
-        unsubscribe();
-      }
+      unsubscribe();
     };
-  }, [subscribeToWebSocket]);
+  }, []);
 
   const onUpdateRef = useRef(onUpdate);
   
