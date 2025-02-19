@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { View, Text, StyleSheet, Dimensions, ScrollView, TouchableOpacity, TextInput } from "react-native";
 import { TabView, SceneMap, TabBar } from "react-native-tab-view";
-import WebSocketManager from "@/api/WebSocketManager";
 import { useHyperliquid } from "@/context/HyperliquidContext";
 import { useActiveAccount } from "thirdweb/react";
 import { OrderRequest, placeOrderl1 } from "@/utils/Signing";

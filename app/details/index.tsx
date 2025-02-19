@@ -4,8 +4,8 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
 import { useSpotName } from "@/hooks/useSpotName";
 import TradingViewChart from "@/components/TradingViewChart";
-import PerpAssetOverview from "@/components/PerpAssetOverview";
-import SpotAssetOverview from "@/components/SpotAssetOverview";
+import PerpAssetOverview from "@/components/assetoverview/PerpAssetOverview";
+import SpotAssetOverview from "@/components/assetoverview/SpotAssetOverview";
 import OrderbookAndTrades from "@/components/OrderbookAndTrades";
 
 const DetailsPage: React.FC = () => {
