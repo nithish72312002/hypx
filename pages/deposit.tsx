@@ -70,7 +70,7 @@ const DepositPage = () => {
       try {
         const response = await fetch(`https://api.hyperunit-testnet.xyz/gen/bitcoin/hyperliquid/btc/${address}`);
         const data: BTCAddressResponse = await response.json();
-        
+        console.log("BTC address response:", data);
         if (data.error) {
           console.error('Error from API:', data.error);
           return;

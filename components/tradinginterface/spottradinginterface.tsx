@@ -50,7 +50,7 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
   const fullSymbol = `${sdksymbol}-SPOT`;
   const { wallet, loading: walletLoading, error: walletError, createWallet } = useAgentWallet();
   const { approveAgent } = useApproveAgent();
-  const { approvalCompleted, setApprovalCompleted } = useApprovalStore();  
+  const { approvalCompleted, setApprovalCompleted , isMatch} = useApprovalStore();  
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const { orderType, setOrderType , price, setPrice } = usespotTradingStore();
@@ -64,7 +64,7 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
 
     try {
       // Create wallet if we don't have one
-      if (!wallet?.address) {
+      if (!wallet?.address || !isMatch) {
         console.log("Creating wallet...");
         await createWallet();
         

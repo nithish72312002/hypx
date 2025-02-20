@@ -7,7 +7,6 @@ import { OrderRequest, placeOrderl1 } from "@/utils/Signing";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { usePerpOrdersStore, usePerpPositionsStore, usePerpContextStore } from "@/store/usePerpWallet";
-import Ionicons from 'react-native-vector-icons/Ionicons';
 
 interface TradingInterfaceProps {
   symbol: string;
@@ -42,7 +41,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
   const [closeStatus, setcloseStatus] = useState<string | null>(null);
   const {wallet }= useAgentWallet()
   const bottomSheetModalRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ['70%'], []);
+  const snapPoints = useMemo(() => ['50%','85%'], []);
   const [size, setSize] = useState('');
   const [price, setPrice] = useState('');
   const [orderType, setOrderType] = useState('Market');
@@ -649,20 +648,15 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
         ref={bottomSheetModalRef}
         index={0}
         snapPoints={snapPoints}
+        enableDynamicSizing={false}
         backdropComponent={renderBackdrop}
         backgroundStyle={styles.bottomSheetBackground}
       >
         <BottomSheetView style={styles.bottomSheetContent}>
-          <ScrollView 
-            contentContainerStyle={styles.scrollContent}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
+         
             <View style={styles.modalHeader}>
               <Text style={styles.bottomSheetTitle}>Set TP/SL</Text>
-              <TouchableOpacity onPress={handleDismissModal}>
-                <Ionicons name="close" size={24} color="#808A9D" />
-              </TouchableOpacity>
+             
             </View>
 
             <View style={styles.infoContainer}>
@@ -714,7 +708,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
                 <View style={styles.inputGroup}>
                   <View style={styles.inputRow}>
                     <View style={styles.triggerInput}>
-                      <TextInput
+                      <TextInput 
                         style={styles.input}
                         placeholder="Trigger Price"
                         placeholderTextColor="#8F98A3"
@@ -725,7 +719,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
                     </View>
                     <View style={styles.pnlInputContainer}>
                       <View style={styles.pnlInput}>
-                        <TextInput
+                        <TextInput 
                           style={styles.input}
                           placeholder="PnL"
                           placeholderTextColor="#8F98A3"
@@ -770,7 +764,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
                 <View style={styles.inputGroup}>
                   <View style={styles.inputRow}>
                     <View style={styles.triggerInput}>
-                      <TextInput
+                      <TextInput 
                         style={styles.input}
                         placeholder="Trigger Price"
                         placeholderTextColor="#8F98A3"
@@ -781,7 +775,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
                     </View>
                     <View style={styles.pnlInputContainer}>
                       <View style={styles.pnlInput}>
-                        <TextInput
+                        <TextInput 
                           style={styles.input}
                           placeholder="PnL"
                           placeholderTextColor="#8F98A3"
@@ -805,7 +799,6 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
             <TouchableOpacity style={styles.confirmButton}onPress={() => handletpsl(modalData.coin, modalData.size, modalData.entryPx, modalData.markPx)}>
               <Text style={styles.confirmButtonText}>Confirm</Text>
             </TouchableOpacity>
-          </ScrollView>
         </BottomSheetView>
       </BottomSheetModal>
     </View>
@@ -976,10 +969,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     color: '#FFFFFF',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 16,
   },
   infoContainer: {
     marginBottom: 16,

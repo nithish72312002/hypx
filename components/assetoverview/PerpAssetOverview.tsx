@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import WebSocketManager from "@/api/WebSocketManager";
+import { formatLargeNumber } from "@/utils/formatters";
 
 interface PerpAssetData {
   coin: string;
@@ -103,17 +104,17 @@ const PerpAssetOverview: React.FC<PerpAssetOverviewProps> = ({ symbol }) => {
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>24h Vol({symbol})</Text>
-                <Text style={styles.statValue}>{parseFloat(data.dayBaseVlm)}</Text>
+                <Text style={styles.statValue}>{formatLargeNumber(parseFloat(data.dayBaseVlm))}</Text>
               </View>
             </View>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>Open Interest</Text>
-                <Text style={styles.statValue}>{parseFloat(data.openInterest)}</Text>
+                <Text style={styles.statValue}>{formatLargeNumber(parseFloat(data.openInterest))}</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statLabel}>24h Vol(USD)</Text>
-                <Text style={styles.statValue}>{parseFloat(data.dayNtlVlm).toFixed(2)}</Text>
+                <Text style={styles.statValue}>{formatLargeNumber(parseFloat(data.dayNtlVlm))}</Text>
               </View>
             </View>
           </View>

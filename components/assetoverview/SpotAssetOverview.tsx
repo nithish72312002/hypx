@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import WebSocketManager from "@/api/WebSocketManager";
+import { formatLargeNumber } from "@/utils/formatters";
 
 interface SpotAssetData {
   coin: string;
@@ -143,11 +144,11 @@ const SpotAssetOverview: React.FC<SpotAssetOverviewProps> = ({ symbol }) => {
               <View style={styles.statsColumn}>
                 <View style={styles.statItem}>
                   <Text style={styles.statLabel}>24h Volume</Text>
-                  <Text style={styles.statValue}>${parseFloat(data.dayNtlVlm).toFixed(2)}</Text>
+                  <Text style={styles.statValue}>${formatLargeNumber(parseFloat(data.dayNtlVlm))}</Text>
                 </View>
                 <View style={styles.statItem}>
                   <Text style={styles.statLabel}>Total Supply</Text>
-                  <Text style={styles.statValue}>{parseFloat(data.totalSupply).toFixed(2)}</Text>
+                  <Text style={styles.statValue}>{formatLargeNumber(parseFloat(data.totalSupply))}</Text>
                 </View>
               </View>
             </View>

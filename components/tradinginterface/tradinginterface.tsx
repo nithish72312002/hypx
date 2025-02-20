@@ -63,7 +63,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const fullSymbol = `${symbol}-PERP`;
   const { wallet, loading: walletLoading, error: walletError, createWallet } = useAgentWallet();
   const { approveAgent } = useApproveAgent();
-  const { approvalCompleted, setApprovalCompleted } = useApprovalStore();
+  const { approvalCompleted, setApprovalCompleted , isMatch } = useApprovalStore();
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const marginBottomSheetRef = useRef<BottomSheetModal>(null);
@@ -178,7 +178,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
     setIsConnecting(true);
     try {
       // Create wallet if we don't have one
-      if (!wallet?.address) {
+      if (!wallet?.address || !isMatch) {
         console.log("Creating wallet...");
         await createWallet();
       }
