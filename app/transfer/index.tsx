@@ -15,6 +15,7 @@ import { Alert } from 'react-native';
 import { useActiveAccount } from 'thirdweb/react';
 import { Toast } from '@/components/Toast';
 import AntDesign from '@expo/vector-icons/AntDesign';
+import SafeViewAndroid from '@/components/SafeViewAndroid/SafeViewAndroid';
 
 const TransferPage = () => {
   const [amount, setAmount] = useState('');
@@ -173,7 +174,7 @@ const TransferPage = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[SafeViewAndroid.AndroidSafeArea, styles.container]} >
       <Stack.Screen
         options={{
           headerStyle: {

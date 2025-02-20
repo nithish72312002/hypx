@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import Spot from "./spot";
 import Perps from "./perps";
+import SafeViewAndroid from "@/components/SafeViewAndroid/SafeViewAndroid";
 
 const MarketLayout: React.FC = () => {
   const params = useLocalSearchParams();
@@ -51,7 +52,7 @@ const MarketLayout: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[SafeViewAndroid.AndroidSafeArea, styles.container]} >
       <TabView
         navigationState={{ index, routes }}
         renderScene={renderScene}

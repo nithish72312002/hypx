@@ -18,6 +18,7 @@ import OpenOrdersPositionsTabs from "@/components/openorders/OpenOrdersPositions
 import { usePerpStore } from "@/store/usePerpStore";
 import WebSocketManager from "@/api/WebSocketManager";
 import { Ionicons } from '@expo/vector-icons';
+import SafeViewAndroid from "@/components/SafeViewAndroid/SafeViewAndroid";
 
 interface PerpTokenData {
   name: string;
@@ -177,7 +178,7 @@ const FuturesPage: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[SafeViewAndroid.AndroidSafeArea, styles.container]} >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>

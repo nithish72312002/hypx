@@ -16,6 +16,7 @@ import { useSpotStore } from "@/store/useSpotStore";
 import SpotTradingInterface from "@/components/tradinginterface/spottradinginterface";
 import SpotOrderBook from "@/components/orderbooks/spotOrderBook";
 import SpotTradeOpenOrdersHoldings from "@/components/openorders/OpenOrdersHoldingsTabs";
+import SafeViewAndroid from "@/components/SafeViewAndroid/SafeViewAndroid";
 
 interface SpotTokenData {
   id: string;
@@ -106,7 +107,7 @@ const SpotPage: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[SafeViewAndroid.AndroidSafeArea, styles.container]} >
       {/* Wrap all main content in a ScrollView */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header displays the sdkSymbol (token name) */}

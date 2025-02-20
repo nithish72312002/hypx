@@ -9,6 +9,7 @@ import Overview from './Overview';
 import HyperEVM from './hyperevm';
 import { useActiveAccount } from 'thirdweb/react';
 import { useRouter } from 'expo-router';
+import SafeViewAndroid from '@/components/SafeViewAndroid/SafeViewAndroid';
 
 const renderScene = ({ route }: { route: { key: string } }) => {
   switch (route.key) {
@@ -44,7 +45,7 @@ const WalletScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[SafeViewAndroid.AndroidSafeArea, styles.container]} >
       {/* Header Section */}
       <View style={styles.tabContainer}>
         {routes.map((route, i) => (

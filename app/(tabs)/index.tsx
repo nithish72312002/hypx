@@ -17,6 +17,7 @@ import { useActiveAccount } from "thirdweb/react";
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { usePerpStore } from '@/store/usePerpStore';
+import SafeViewAndroid from '@/components/SafeViewAndroid/SafeViewAndroid';
 
 const { width } = Dimensions.get('window');
 
@@ -140,7 +141,7 @@ const HomeScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[SafeViewAndroid.AndroidSafeArea, styles.container]} >
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.profileButton}
