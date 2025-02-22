@@ -1,6 +1,6 @@
 import { Tabs } from "expo-router";
 import React from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useActiveAccount } from "thirdweb/react";
 import { useRouter } from "expo-router";
@@ -20,8 +20,8 @@ export default function TabLayout() {
             backgroundColor: '#1A1C24',
             borderTopColor: '#2A2D3A',
             borderTopWidth: 1,
-            height: 60,
-            paddingBottom: 8,
+            height: Platform.OS === 'ios' ? 85 : 60,
+            paddingBottom: Platform.OS === 'ios' ? 25 : 8,
             paddingTop: 8,
           },
           tabBarActiveTintColor: '#F0B90B',

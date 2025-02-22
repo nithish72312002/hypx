@@ -36,9 +36,9 @@ export const useApprovalStore = create<ApprovalState>((set) => ({
       console.log("Account address:", walletAddress);
       console.log("Response user:", data?.data?.user);
 
-      if (data?.response === "missing") {
-        console.log("User role missing, setting approval to false");
-        set({ approvalCompleted: false , isMatch: true});
+      if (data?.role === "missing") {
+        console.log("User role missing, setting approval to false and isMatch to true");
+        set({ approvalCompleted: false, isMatch: true });
       } else if (data?.data?.user?.toLowerCase() === accountAddress?.toLowerCase()) {
         console.log("User role matches account");
         console.log("User role matches account, setting approval to true");

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "thirdweb playground",
+    "name": "hypx",
     "slug": "hypx",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "com.thirdweb.demo",
+    "scheme": "hypx",
     "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/images/splash.png",
@@ -14,11 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.thirdweb.demo",
-      "associatedDomains": [
-        "webcredentials:verify.hypx.xyz",
-        "applinks:verify.hypx.xyz"
-      ],
+      "bundleIdentifier": "hypx.xyz",
       "extraPods": [
         {
           "name": "OpenSSL-Universal",

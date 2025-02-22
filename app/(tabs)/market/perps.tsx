@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { usePerpStore } from "@/store/usePerpStore";
 import { useRouter } from "expo-router";
+import { useSearchStore } from '@/store/useSearchStore';
 
 interface PerpTokenData {
   name: string;
@@ -27,14 +28,15 @@ interface SortConfig {
 const PerpPage: React.FC = () => {
   const { tokens, isLoading } = usePerpStore();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
+  const { searchText } = useSearchStore();
   const router = useRouter();
 
- 
-
   const handleNavigateToDetails = (symbol: string) => {
-    const encodedSymbol = encodeURIComponent(symbol);
-    router.push(`/details/${encodedSymbol}`);
-  };
+      router.push({
+        pathname: "/details",
+        params: { symbol }
+      });
+    };
 
   const sortData = (data: PerpTokenData[], config: SortConfig) => {
     return [...data].sort((a, b) => {
@@ -65,9 +67,16 @@ const PerpPage: React.FC = () => {
     return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
   };
 
-  const sortedTokens = React.useMemo(() => {
-    return sortData(tokens, sortConfig);
-  }, [tokens, sortConfig]);
+  const filteredAndSortedData = useMemo(() => {
+    let filtered = tokens;
+    if (searchText) {
+      const searchLower = searchText.toLowerCase();
+      filtered = tokens.filter(token => 
+        token.name.toLowerCase().includes(searchLower)
+      );
+    }
+    return sortData(filtered, sortConfig);
+  }, [tokens, sortConfig, searchText]);
 
   const RenderToken = React.memo(
     ({ item, onPress }: { item: PerpTokenData; onPress: (name: string) => void }) => (
@@ -96,48 +105,45 @@ const PerpPage: React.FC = () => {
     <RenderToken item={item} onPress={handleNavigateToDetails} />
   );
 
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text style={styles.loadingText}>Loading perpetual tokens...</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity 
-          style={[styles.headerText, styles.nameColumn]} 
-          onPress={() => handleSort('name')}
-        >
-          <Text style={[styles.headerText, {textAlign: 'left'}]}>Name / Vol{getSortIcon('name')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.headerText, styles.priceColumn]}
-          onPress={() => handleSort('price')}
-        >
-          <Text style={[styles.headerText, {textAlign: 'right'}]}>Last Price{getSortIcon('price')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.headerText, styles.changeColumn]}
-          onPress={() => handleSort('change')}
-        >
-          <Text style={[styles.headerText, {textAlign: 'right'}]}>24h Chg%{getSortIcon('change')}</Text>
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={sortedTokens}
-        keyExtractor={(item) => item.name}
-        renderItem={renderToken}
-        initialNumToRender={10} 
-        getItemLayout={(data, index) => ({
-          length: 60, 
-          offset: 60 * index,
-          index,
-        })}
-      />
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#F0B90B" />
+      ) : (
+        <View>
+          <View style={styles.headerRow}>
+            <TouchableOpacity 
+              style={[styles.headerCell, styles.nameColumn]}
+              onPress={() => handleSort('name')}
+            >
+              <Text style={styles.headerText}>{`Name / Vol${getSortIcon('name')}`}</Text>
+              </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.headerCell, styles.priceColumn]}
+              onPress={() => handleSort('price')}
+            >
+                <Text style={styles.headerText}>{`Last Price${getSortIcon('price')}`}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.headerCell, styles.changeColumn]}
+              onPress={() => handleSort('change')}
+            >
+              <Text style={styles.headerText}>{`24h Chg%${getSortIcon('change')}`}</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={filteredAndSortedData}
+            keyExtractor={(item) => item.name}
+            renderItem={renderToken}
+            initialNumToRender={10} 
+            getItemLayout={(data, index) => ({
+              length: 60, 
+              offset: 60 * index,
+              index,
+            })}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -150,24 +156,25 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
+    paddingVertical: 4,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#2A2D3A",
   },
+  headerCell: {
+    flex: 1,
+  },
   headerText: {
-    fontSize: 13,
-    color: "#808A9D",
-    fontWeight: "500",
+    fontSize: 14,
+    color: '#808A9D',
+    fontWeight: '500',
   },
   nameColumn: {
     flex: 2,
-    alignItems: 'flex-start',
   },
   priceColumn: {
     flex: 1,
     alignItems: 'flex-end',
-    paddingRight: 2,
   },
   changeColumn: {
     flex: 1,
@@ -203,6 +210,7 @@ const styles = StyleSheet.create({
   },
   tokenPrice: {
     fontSize: 16,
+    paddingRight: 6,
     color: "#fff",
     fontWeight: "500",
     textAlign: "right",

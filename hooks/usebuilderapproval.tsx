@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import axios from "axios";
 import { useActiveAccount } from "thirdweb/react";
+import { BUILDER_ADDRESS } from "@/constants/env";
 
 export const useapprovebuilderfee = () => {
   const account = useActiveAccount();
@@ -17,12 +18,12 @@ export const useapprovebuilderfee = () => {
       const currentTimestamp = Date.now();
 
       const message = {
+        type: "approveBuilderFee",
         hyperliquidChain: "Testnet",
         signatureChainId: "0x66eee",
-        builder: process.env.BUILDER_ADDRESS!,
         maxFeeRate: "0.1%",
+        builder: BUILDER_ADDRESS,
         nonce: currentTimestamp,
-        type: "approveBuilderFee",
       };
 
       const domain = {
@@ -42,7 +43,7 @@ export const useapprovebuilderfee = () => {
         "HyperliquidTransaction:ApproveBuilderFee": [
           { name: "hyperliquidChain", type: "string" },
           { name: "maxFeeRate", type: "string" },
-          { name: "builder", type: "string" },
+          { name: "builder", type: "address" },
           { name: "nonce", type: "uint64" },
         ],
       };
@@ -73,13 +74,13 @@ export const useapprovebuilderfee = () => {
 
       if (response.data.status === "err") {
         const error = new Error(response.data.response);
-        console.error("Agent approval failed:", response.data.response);
+        console.error("builder approval failed:", response.data.response);
         throw error; // Make sure error is thrown
       }
 
       return response.data;
     } catch (err) {
-      console.error("Error approving agent wallet:", err);
+      console.error("Error approving builder wallet:", err);
       setError(err);
       throw err; // Re-throw to propagate to caller
     }

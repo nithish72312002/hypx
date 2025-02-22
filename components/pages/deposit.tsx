@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { DEFENDER_WEBHOOK_URL } from '@/constants/env';
 
 interface BTCAddressResponse {
   address: string;
@@ -172,7 +173,7 @@ const DepositPage = () => {
 
       try {
         const response = await axios.post(
-          "https://api.defender.openzeppelin.com/actions/cdad05d0-37e1-4a84-82ce-8c46a9579ca4/runs/webhook/79ec3a98-4ad9-47b2-9cda-ad825e513bda/ENWSP8YhV2p9P3DknmVXqh",
+          DEFENDER_WEBHOOK_URL,
           {
             data: encodedData
           },

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Stack } from 'expo-router';
-import DepositPage from '@/pages/deposit';
+import DepositPage from '@/components/pages/deposit';
 
 const Deposit = () => {
   return (

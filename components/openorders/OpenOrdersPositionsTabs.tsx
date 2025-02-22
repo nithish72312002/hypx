@@ -7,6 +7,7 @@ import { OrderRequest, placeOrderl1 } from "@/utils/Signing";
 import { useAgentWallet } from "@/hooks/useAgentWallet";
 import { BottomSheetModal, BottomSheetBackdrop, BottomSheetView } from "@gorhom/bottom-sheet";
 import { usePerpOrdersStore, usePerpPositionsStore, usePerpContextStore } from "@/store/usePerpWallet";
+import { BUILDER_ADDRESS } from "@/constants/env";
 
 interface TradingInterfaceProps {
   symbol: string;
@@ -46,7 +47,6 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
   const [price, setPrice] = useState('');
   const [orderType, setOrderType] = useState('Market');
   const [isBuy, setIsBuy] = useState(true);
-  const [isReduceOnly, setIsReduceOnly] = useState(false);
   const [modalData, setModalData] = useState<ModalData>({
     coin: '',
     size: '',
@@ -280,37 +280,124 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
 
   const closeallOrder = async () => {
     if (!sdk) {
-      console.log("Close all positions failed: SDK not initialized");
-      setcloseallStatus("SDK not initialized yet.");
+      console.log('Close all positions failed: SDK not initialized');
       return;
     }
+
     try {
-      console.log("Attempting to close all positions...");
-      const result = await sdk.custom.closeAllPositions();
-      console.log("Close all positions response:", result);
-      if (result && Array.isArray(result)) {
-        console.log("Successfully closed all positions");
-        setcloseallStatus("All positions closed successfully!");
-      } else {
-        console.error("Unexpected response format:", result);
-        setcloseallStatus("Failed to close positions: Unexpected response format");
+      const allPositions = positions;
+      console.log('Attempting to close all positions:', allPositions);
+
+      // Create orders for all positions
+      const orders = allPositions.map(position => {
+        const isLongPosition = Number(position.size) > 0;
+        const rawPrice = parseFloat(position.markPx);
+        const priceWithSlippage = rawPrice * (isLongPosition ? SLIPPAGE_MULTIPLIER_SELL : SLIPPAGE_MULTIPLIER_BUY);
+        const priceNum = Number(priceWithSlippage.toPrecision(5));
+
+        return {
+          coin: `${position.coin}-PERP`,
+          is_buy: isLongPosition ? false : true, // opposite of position direction
+          sz: Math.abs(Number(position.size)),
+          limit_px: priceNum,
+          order_type: { limit: { tif: "FrontendMarket" } },
+          reduce_only: true
+        };
+      });
+
+      if (orders.length === 0) {
+        console.log('No positions to close');
+        return;
       }
-    } catch (error: any) {
-      console.error("Error closing all positions:", error);
-      setcloseallStatus(`Failed to close positions: ${error.message ?? "Unknown error"}`);
+
+      const orderRequest = {
+        orders,
+        grouping: 'na',
+        builder: {
+          b: BUILDER_ADDRESS,
+          f: 50
+        }
+      };
+
+      console.log('Placing close all orders with request:', JSON.stringify(orderRequest, null, 2));
+      const result = await sdk.exchange.placeOrder(orderRequest);
+      console.log('Close all orders response:', result);
+
+      if (result?.response?.data?.statuses?.[0]?.error) {
+        const error = result.response.data.statuses[0].error;
+        console.error('Error closing all positions:', error);
+        setcloseStatus(`Failed to close all positions: ${error}`);
+      } else {
+        setcloseStatus("All positions closed successfully!");
+      }
+    } catch (error) {
+      console.error('Error in closeallOrder:', error);
+      setcloseStatus("Failed to close all positions. Please try again.");
     }
   };
 
-  const closePosition = async (coin: string) => {
+  const closePosition = async (coin: string , size: string , markPx: string) => {
+    console.log('Close position called with params:', { coin, size, markPx });
+    
     if (!sdk) {
       console.log(`Close position failed for ${coin}: SDK not initialized`);
       setcloseStatus("SDK not initialized yet.");
       return;
     }
+
+    const sizeNum = parseFloat(size);
+    const isLongPosition = Number(size) > 0;
+    const rawPrice = parseFloat(markPx);
+    // When closing long (selling), use SELL multiplier to lower price
+    // When closing short (buying), use BUY multiplier to increase price
+    const priceWithSlippage = rawPrice * (isLongPosition ? SLIPPAGE_MULTIPLIER_SELL : SLIPPAGE_MULTIPLIER_BUY);
+    const priceNum = Number(priceWithSlippage.toPrecision(5));
+    console.log('Parsed values:', { sizeNum, priceNum, rawPrice, priceWithSlippage, isLongPosition });
+
+    if (isNaN(sizeNum) || sizeNum <= 0) {
+      console.log('Invalid size:', { sizeNum });
+      return;
+    }
+    if (isNaN(priceNum) || priceNum <= 0) {
+      console.log('Invalid price:', { priceNum });
+      return;
+    }
+
+    // Set order type conditionally:
+    const orderTypeObject =
+      orderType === 'Market'
+        ? { limit: { tif: "FrontendMarket" } }
+        : { limit: { tif: "Gtc" } };
+    console.log('Order type:', orderTypeObject);
+
     try {
       const closesymbol = `${coin}-PERP`;
-      console.log(`Attempting to close position for ${closesymbol}...`);
-      const result = await sdk.custom.marketClose(closesymbol);
+      const isLongPosition = Number(size) > 0;
+      console.log('Position details:', { 
+        closesymbol, 
+        isLongPosition, 
+        closeSize: Math.abs(sizeNum),
+        closePrice: priceNum
+      });
+
+      const orderRequest = {
+        orders: [{
+          coin: closesymbol,
+          is_buy: isLongPosition ? false : true,
+          sz: Math.abs(sizeNum),
+          limit_px: priceNum,
+          order_type: orderTypeObject,
+          reduce_only: true,
+        }],
+        grouping: 'na',
+        builder: {
+          b: BUILDER_ADDRESS,
+          f: 50
+        }
+      };
+      console.log('Placing close order with request:', JSON.stringify(orderRequest, null, 2));
+
+      const result = await sdk.exchange.placeOrder(orderRequest);
       console.log(`Market close response for ${closesymbol}:`, result);
       if (result?.response?.data?.statuses?.[0]?.error) {
         const error = result.response.data.statuses[0].error;
@@ -352,6 +439,10 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
       }
     }
   };
+
+  const SLIPPAGE_PERCENTAGE = 2; // 0.5%
+  const SLIPPAGE_MULTIPLIER_BUY = 1 + (SLIPPAGE_PERCENTAGE / 100);  // 1.005 for 0.5%
+  const SLIPPAGE_MULTIPLIER_SELL = 1 - (SLIPPAGE_PERCENTAGE / 100); // 0.995 for 0.5%   
 
   const handletpsl = async (coin: string, size: string, entryPx: string, markPx: string) => {
     console.log('Starting handletpsl with params:', { coin, size, entryPx, markPx });
@@ -406,7 +497,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
             coin: fullSymbol,
             is_buy: isLongPosition ? false : true,  // For long: sell at TP, For short: buy at TP
             sz: Math.abs(sizeNum),
-            limit_px: tpprice,
+            limit_px: tpprice * (isLongPosition ? SLIPPAGE_MULTIPLIER_SELL : SLIPPAGE_MULTIPLIER_BUY),
             order_type: { trigger: { triggerPx: tpprice, isMarket: true, tpsl: "tp" } },
             reduce_only: true
           }] : []),
@@ -414,12 +505,16 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
             coin: fullSymbol,
             is_buy: isLongPosition ? false : true,  // For long: sell at SL, For short: buy at SL
             sz: Math.abs(sizeNum),
-            limit_px: slprice,
+            limit_px: slprice * (isLongPosition ? SLIPPAGE_MULTIPLIER_SELL : SLIPPAGE_MULTIPLIER_BUY),
             order_type: { trigger: { triggerPx: slprice, isMarket: true, tpsl: "sl" } },
             reduce_only: true
           }] : [])
         ],
-        grouping: "positionTpsl"
+        grouping: "positionTpsl",
+        builder: {
+          b: BUILDER_ADDRESS,
+          f: 50,
+        }
       });
 
       const result = await sdk.exchange.placeOrder({
@@ -428,7 +523,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
             coin: fullSymbol,
             is_buy: isLongPosition ? false : true,  // For long: sell at TP, For short: buy at TP
             sz: 0,
-            limit_px: tpprice,
+            limit_px: tpprice * (isLongPosition ? SLIPPAGE_MULTIPLIER_SELL : SLIPPAGE_MULTIPLIER_BUY),
             order_type: { trigger: { triggerPx: tpprice, isMarket: true, tpsl: "tp" } },
             reduce_only: true
           }] : []),
@@ -436,12 +531,16 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
             coin: fullSymbol,
             is_buy: isLongPosition ? false : true,  // For long: sell at SL, For short: buy at SL
             sz: 0,
-            limit_px: slprice,
+            limit_px: slprice * (isLongPosition ? SLIPPAGE_MULTIPLIER_SELL : SLIPPAGE_MULTIPLIER_BUY),
             order_type: { trigger: { triggerPx: slprice, isMarket: true, tpsl: "sl" } },
             reduce_only: true
           }] : [])
         ],
-        grouping: "positionTpsl"
+        grouping: "positionTpsl",
+        builder: {
+          b: BUILDER_ADDRESS,
+          f: 50
+        }
       });
       console.log('Order placement complete. Full result:', JSON.stringify(result, null, 2));
       
@@ -604,7 +703,7 @@ const OpenOrdersPositionsTabs: React.FC<TradingInterfaceProps> = ({ symbol }) =>
                   <TouchableOpacity style={styles.tpslButton} onPress={() => handlePresentModal(pos.coin, pos.size, pos.entryPx, pos.markPx, pos.leverage)}>
                     <Text style={styles.tpslText}>TP/SL</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.closeButton} onPress={() => closePosition(pos.coin)}>
+                  <TouchableOpacity style={styles.closeButton} onPress={() => closePosition(pos.coin, pos.size ,pos.markPx)}>
                     <Text style={styles.closeButtonText}>Close</Text>
                   </TouchableOpacity>
                 </View>

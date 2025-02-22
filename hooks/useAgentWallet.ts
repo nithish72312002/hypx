@@ -13,16 +13,28 @@ export function useAgentWallet() {
       setLoading(true);
       setError(null);
 
-      // Convert HDNodeWallet to regular Wallet
+      // Generate a new random wallet with entropy
       const randomWallet = ethers.Wallet.createRandom();
+      
+      // Validate the generated wallet
+      if (!randomWallet.address || !randomWallet.privateKey) {
+        throw new Error("Failed to generate valid wallet");
+      }
+
+      // Convert to regular wallet and validate
       const agentWallet = new ethers.Wallet(randomWallet.privateKey);
+      if (!ethers.isAddress(agentWallet.address)) {
+        throw new Error("Invalid wallet address generated");
+      }
+
+      // Save private key securely
       await savePrivateKey(agentWallet.privateKey);
       setWallet(agentWallet);
-      console.log("useAgentWallet: New wallet created and saved.");
+      console.log("useAgentWallet: New wallet created and saved successfully");
       return agentWallet;
     } catch (err) {
       console.error("useAgentWallet: Error creating wallet:", err);
-      setError("Failed to create wallet.");
+      setError(err instanceof Error ? err.message : "Failed to create wallet");
       return null;
     } finally {
       setLoading(false);
@@ -34,15 +46,29 @@ export function useAgentWallet() {
     const initWallet = async () => {
       try {
         setLoading(true);
+        setError(null);
         const privateKey = await getPrivateKey();
+        
         if (privateKey) {
+          // Validate private key format
+          if (!privateKey.match(/^0x[0-9a-fA-F]{64}$/)) {
+            throw new Error("Invalid private key format in storage");
+          }
+
           const agentWallet = new ethers.Wallet(privateKey);
+          
+          // Validate wallet address
+          if (!ethers.isAddress(agentWallet.address)) {
+            throw new Error("Invalid wallet address");
+          }
+
           setWallet(agentWallet);
-          console.log("useAgentWallet: Loaded wallet from storage");
+          console.log("useAgentWallet: Wallet loaded successfully from storage");
         }
       } catch (err) {
         console.error("useAgentWallet: Error loading wallet:", err);
-        setError("Failed to load wallet.");
+        setError(err instanceof Error ? err.message : "Failed to load wallet");
+        setWallet(null);
       } finally {
         setLoading(false);
       }

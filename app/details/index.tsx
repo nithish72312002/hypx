@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { View, StyleSheet, Text, TouchableOpacity, ScrollView, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useNavigation } from "@react-navigation/native";
@@ -8,6 +8,7 @@ import PerpAssetOverview from "@/components/assetoverview/PerpAssetOverview";
 import SpotAssetOverview from "@/components/assetoverview/SpotAssetOverview";
 import OrderbookAndTrades from "@/components/OrderbookAndTrades";
 
+
 const DetailsPage: React.FC = () => {
   const { symbol } = useLocalSearchParams();
   const navigation = useNavigation();
@@ -15,11 +16,10 @@ const DetailsPage: React.FC = () => {
   const isSpot = symbol?.includes("@") || symbol?.includes("/");
   const { name, isLoading } = useSpotName(isSpot ? symbol?.toString() : undefined);
   const sdkSymbol = name?.toUpperCase();
+  const scrollViewRef = useRef<ScrollView>(null); // Ref for ScrollView
 
   useEffect(() => {
-    // Set empty title initially while loading
     navigation.setOptions({ title: '' });
-    
     if (!isLoading) {
       const displayName = isSpot && name ? name.toUpperCase() : symbol?.toString().toUpperCase();
       navigation.setOptions({ title: displayName });
@@ -28,7 +28,11 @@ const DetailsPage: React.FC = () => {
 
   const content = (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollContent}>
+      <ScrollView 
+        ref={scrollViewRef}
+        style={styles.scrollContent}
+        scrollEnabled={true} // Default state
+      >
         {isSpot ? (
           <SpotAssetOverview symbol={symbol?.toString() || ""} />
         ) : (
@@ -36,7 +40,11 @@ const DetailsPage: React.FC = () => {
         )}
 
         <View style={styles.chartSection}>
-          <TradingViewChart symbol={symbol?.toString() || "BTC"} />
+          <TradingViewChart 
+            symbol={symbol?.toString() || "BTC"} 
+            onTouchStart={() => scrollViewRef.current?.setNativeProps({ scrollEnabled: false })}
+            onTouchEnd={() => scrollViewRef.current?.setNativeProps({ scrollEnabled: true })}
+          />
         </View>
 
         <OrderbookAndTrades symbol={symbol?.toString() || ""} />

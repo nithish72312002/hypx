@@ -15,6 +15,8 @@ export const client = createThirdwebClient({
   clientId,
 });
 
+
+
 export const chain = baseSepolia;
 
 export const contract = getContract({

@@ -10,14 +10,15 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import PagerView from 'react-native-pager-view';
 import { useRouter } from 'expo-router';
 import { useActiveAccount } from "thirdweb/react";
 import { useNavigation } from '@react-navigation/native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { usePerpStore } from '@/store/usePerpStore';
-import SafeViewAndroid from '@/components/SafeViewAndroid/SafeViewAndroid';
+import { useSearchFocusStore } from '@/store/useSearchFocusStore';
+import { CustomSafeArea } from '@/components/SafeViewAndroid/SafeViewAndroid';
+import { showToast } from '@/utils/toast';
 
 const { width } = Dimensions.get('window');
 
@@ -71,6 +72,7 @@ const HomeScreen = () => {
   const [activeTab, setActiveTab] = React.useState(0);
   const pagerRef = React.useRef(null);
   const { tokens, isLoading } = usePerpStore();
+  const { setShouldFocusSearch } = useSearchFocusStore();
 
   const handleNavigatemarket = (route) => {
     router.push(route);
@@ -83,7 +85,12 @@ const HomeScreen = () => {
     });
   };
 
-
+  const handleTestToast = () => {
+    showToast.success('Success!', {
+      description: 'This is a test toast message',
+      position: { vertical: 'center', horizontal: 'left' }
+    });
+  };
 
   const tabs = ['Favorites', 'Hot', 'Gainers', 'Losers', '24h Vol'];
 
@@ -141,7 +148,7 @@ const HomeScreen = () => {
   }
 
   return (
-    <SafeAreaView style={[SafeViewAndroid.AndroidSafeArea, styles.container]} >
+    <CustomSafeArea style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.profileButton}
@@ -157,19 +164,17 @@ const HomeScreen = () => {
         </TouchableOpacity>
         
         <View style={styles.searchContainer}>
-          <View style={styles.searchInputWrapper}>
-            <Icon name="search" size={20} color="#666" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search"
-              placeholderTextColor="#666"
-            />
-          </View>
+          <TouchableOpacity 
+            style={styles.searchInputWrapper}
+            onPress={() => {
+              setShouldFocusSearch(true);
+              router.push('/(tabs)/market');
+            }}
+          >
+            <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+            <Text style={styles.searchInput}>Search</Text>
+          </TouchableOpacity>
         </View>
-
-        <TouchableOpacity style={styles.addFundsButton}>
-          <Text style={styles.addFundsText}>Add Funds</Text>
-        </TouchableOpacity>
       </View>
 
       <View style={styles.quickActions}>
@@ -214,6 +219,13 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
 
+      <TouchableOpacity 
+        style={styles.testButton}
+        onPress={handleTestToast}
+      >
+        <Text style={styles.testButtonText}>Test Toast</Text>
+      </TouchableOpacity>
+
       <View style={styles.tabsContainer}>
         <ScrollView 
           horizontal 
@@ -250,7 +262,7 @@ const HomeScreen = () => {
           </View>
         ))}
       </PagerView>
-    </SafeAreaView>
+    </CustomSafeArea>
   );
 };
 
@@ -272,30 +284,34 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
     gap: 8,
+    paddingHorizontal: 16,
     backgroundColor: '#1A1C24',
   },
   searchContainer: {
     flex: 1,
-    height: 40,
-    backgroundColor: '#2A2D3A',
-    borderRadius: 8,
-    marginHorizontal: 8,
+    height: 56,
+    backgroundColor: '#1A1C24',
+    paddingVertical: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   searchInputWrapper: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
+    backgroundColor: '#2A2D3A',
+    borderRadius: 8,
+    height: 40,
   },
   searchIcon: {
     marginRight: 8,
   },
   searchInput: {
     flex: 1,
-    height: 40,
-    color: '#FFFFFF',
+    color: '#666',
+    fontSize: 14,
   },
   profileButton: {
     width: 40,
@@ -307,18 +323,6 @@ const styles = StyleSheet.create({
   },
   profileIcon: {
     fontSize: 20,
-  },
-  addFundsButton: {
-    height: 40,
-    backgroundColor: '#F0B90B',
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addFundsText: {
-    color: '#000000',
-    fontWeight: 'bold',
   },
   felixButton: {
     backgroundColor: '#007AFF',
@@ -445,6 +449,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#808A9D',
     marginTop: 4,
+  },
+  testButton: {
+    backgroundColor: '#F0B90B',
+    padding: 12,
+    borderRadius: 8,
+    marginHorizontal: 16,
+    marginVertical: 8,
+    alignItems: 'center',
+  },
+  testButtonText: {
+    color: '#1A1C24',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

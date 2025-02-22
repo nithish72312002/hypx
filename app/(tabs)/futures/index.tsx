@@ -13,12 +13,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import TradingInterface from "@/components/tradinginterface/tradinginterface";
 import { useLocalSearchParams } from "expo-router";
 import OrderBook from "@/components/orderbooks/OrderBook";
-import BottomSheet, { BottomSheetFlatList } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetFlatList, BottomSheetModal } from "@gorhom/bottom-sheet";
 import OpenOrdersPositionsTabs from "@/components/openorders/OpenOrdersPositionsTabs";
 import { usePerpStore } from "@/store/usePerpStore";
 import WebSocketManager from "@/api/WebSocketManager";
 import { Ionicons } from '@expo/vector-icons';
-import SafeViewAndroid from "@/components/SafeViewAndroid/SafeViewAndroid";
+import { CustomSafeArea } from '@/components/SafeViewAndroid/SafeViewAndroid';
 
 interface PerpTokenData {
   name: string;
@@ -112,11 +112,19 @@ const FuturesPage: React.FC = () => {
     [tokens, searchQuery]
   );
 
-  const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["95%"], []);
+  const handleSnapPress = useCallback(() => {
+    if (sheetRef.current) {
+      sheetRef.current.present();
+    }
+  }, []);
 
-  const handleSnapPress = () => sheetRef.current?.snapToIndex(0);
-  const handleClosePress = () => sheetRef.current?.close();
+  const handleClosePress = useCallback(() => {
+    if (sheetRef.current) {
+      sheetRef.current.dismiss();
+    }
+  }, []);
 
   const RenderToken = React.memo(
     ({
@@ -178,7 +186,7 @@ const FuturesPage: React.FC = () => {
   }
 
   return (
-    <SafeAreaView style={[SafeViewAndroid.AndroidSafeArea, styles.container]} >
+    <CustomSafeArea style={styles.container} >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header */}
         <View style={styles.header}>
@@ -220,11 +228,11 @@ const FuturesPage: React.FC = () => {
       </ScrollView>
 
       {/* Bottom Sheet remains absolutely positioned */}
-      <View style={StyleSheet.absoluteFillObject}>
-        <BottomSheet
+      <View >
+        <BottomSheetModal
           ref={sheetRef}
           snapPoints={snapPoints}
-          index={-1}
+          index={0}
           enablePanDownToClose
           enableDynamicSizing={false}
           backgroundStyle={{ backgroundColor: "#1A1C24" }}
@@ -245,9 +253,9 @@ const FuturesPage: React.FC = () => {
               initialNumToRender={10}
             />
           </View>
-        </BottomSheet>
+        </BottomSheetModal>
       </View>
-    </SafeAreaView>
+    </CustomSafeArea>
   );
 };
 

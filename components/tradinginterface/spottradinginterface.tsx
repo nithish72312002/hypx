@@ -11,6 +11,7 @@ import { Modal } from 'react-native';
 import axios from 'axios';
 import { AntDesign } from '@expo/vector-icons';
 import { usespotTradingStore } from '@/store/useTradingStore';
+import { BUILDER_ADDRESS } from '@/constants/env';
 
 const { width } = Dimensions.get('window');
 
@@ -194,16 +195,22 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
     };
   }, [wsManager]);
 
-  // Update price for Market orders based on midPrice.
+  const SLIPPAGE_PERCENTAGE = 0.5; // 0.5%
+  const SLIPPAGE_MULTIPLIER_BUY = 1 + (SLIPPAGE_PERCENTAGE / 100);  // 1.005 for 0.5%
+  const SLIPPAGE_MULTIPLIER_SELL = 1 - (SLIPPAGE_PERCENTAGE / 100); // 0.995 for 0.5%   
+
+  // This effect updates the price when switching to a market order.
+  // When orderType is "Market" and midPrice is available, set the price to midPrice with 0.5% slippage.
   useEffect(() => {
     if (orderType === 'Market' && midPrice != null && !isNaN(midPrice)) {
-      let px = midPrice; // For example, 3129.5
-      
-      // Adjust price based on order side, if applicable (this step is optional based on your business logic)
+      let px = midPrice;
+      // For market orders:
+      // - If buying, add slippage (midPrice * SLIPPAGE_MULTIPLIER_BUY)
+      // - If selling, subtract slippage (midPrice * SLIPPAGE_MULTIPLIER_SELL)
       if (isBuy) {
-        px = px * 1.005;
+        px = px * SLIPPAGE_MULTIPLIER_BUY;
       } else {
-        px = px * 0.995;
+        px = px * SLIPPAGE_MULTIPLIER_SELL;
       }
       
       // For perp coins, MAX_DECIMALS is 6.
@@ -281,12 +288,21 @@ const SpotTradingInterface: React.FC<TradingInterfaceProps> = ({
   
     try {
       const result = await sdk.exchange.placeOrder({
+        orders: [{
+
         coin: fullSymbol,
         is_buy: isBuy,
         sz: sizeNum,
         limit_px: priceNum,
         order_type: orderTypeObject,
         reduce_only: false,
+      }],
+      grouping: 'na',
+      builder: 
+      {
+        b: BUILDER_ADDRESS,
+        f: 50,
+      }
       });
       const error = result?.response?.data?.statuses?.[0]?.error;
       setTradeStatus(error ? `Failed to place order: ${error}` : "Order placed successfully!");

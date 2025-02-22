@@ -14,6 +14,8 @@ import { useTradingStore } from '@/store/useTradingStore';
 const { width } = Dimensions.get('window');
 import { usePerpPositionsStore } from "@/store/usePerpWallet";
 import { router } from 'expo-router';
+import { useapprovebuilderfee } from '@/hooks/usebuilderapproval';
+import { BUILDER_ADDRESS } from '@/constants/env';
 
 interface Leverage {
   type: string;
@@ -37,6 +39,10 @@ interface Universe {
 interface TradingInterfaceProps {
   symbol: string;
 }
+
+const SLIPPAGE_PERCENTAGE = 0.5; // 0.5%
+const SLIPPAGE_MULTIPLIER_BUY = 1 + (SLIPPAGE_PERCENTAGE / 100);  // 1.005 for 0.5%
+const SLIPPAGE_MULTIPLIER_SELL = 1 - (SLIPPAGE_PERCENTAGE / 100); // 0.995 for 0.5%
 
 const TradingInterface: React.FC<TradingInterfaceProps> = ({ 
   symbol
@@ -63,6 +69,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   const fullSymbol = `${symbol}-PERP`;
   const { wallet, loading: walletLoading, error: walletError, createWallet } = useAgentWallet();
   const { approveAgent } = useApproveAgent();
+  const { approvebuilderfee } = useapprovebuilderfee();
   const { approvalCompleted, setApprovalCompleted , isMatch } = useApprovalStore();
   const [isConnectionModalVisible, setIsConnectionModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -179,6 +186,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
     try {
       // Create wallet if we don't have one
       if (!wallet?.address || !isMatch) {
+        console.log("Wallet mismatch", { walletAddress: wallet?.address, isMatch });
         console.log("Creating wallet...");
         await createWallet();
       }
@@ -188,6 +196,7 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
         try {
           console.log("Approving agent...");
           await approveAgent();
+          await approvebuilderfee();
           setApprovalCompleted(true);
           setIsConnectionModalVisible(false);
         } catch (error: any) {
@@ -305,19 +314,21 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
   }, [userAddress, symbol]);
 
  
-
+  const SLIPPAGE_PERCENTAGE = 0.5; // 0.5%
+  const SLIPPAGE_MULTIPLIER_BUY = 1 + (SLIPPAGE_PERCENTAGE / 100);  // 1.005 for 0.5%
+  const SLIPPAGE_MULTIPLIER_SELL = 1 - (SLIPPAGE_PERCENTAGE / 100); // 0.995 for 0.5%
   // This effect updates the price when switching to a market order.
   // When orderType is "Market" and midPrice is available, set the price to midPrice with 0.5% slippage.
   useEffect(() => {
     if (orderType === 'Market' && midPrice != null && !isNaN(midPrice)) {
       let px = midPrice;
       // For market orders:
-      // - If buying, add 0.5% slippage (midPrice * 1.005)
-      // - If selling, subtract 0.5% slippage (midPrice * 0.995)
+      // - If buying, add slippage (midPrice * SLIPPAGE_MULTIPLIER_BUY)
+      // - If selling, subtract slippage (midPrice * SLIPPAGE_MULTIPLIER_SELL)
       if (isBuy) {
-        px = px * 1.005;
+        px = px * SLIPPAGE_MULTIPLIER_BUY;
       } else {
-        px = px * 0.995;
+        px = px * SLIPPAGE_MULTIPLIER_SELL;
       }
       const MAX_DECIMALS = 6;
       const allowedDecimalPlaces = MAX_DECIMALS - szDecimals;
@@ -357,7 +368,6 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
       setTradeStatus("Please enter a valid price");
         return;
       }
-
     // Set order type conditionally:
       const orderTypeObject =
         orderType === 'Market'
@@ -373,17 +383,39 @@ const TradingInterface: React.FC<TradingInterfaceProps> = ({
         reduce_only: isReduceOnly,
       });
     try {
-      const result = await sdk.exchange.placeOrder({
+      const orderRequest = {
+        orders: [{
           coin: fullSymbol,
           is_buy: isBuy,
           sz: sizeNum,
           limit_px: priceNum,
           order_type: orderTypeObject,
-        reduce_only: false,
-      });
+          reduce_only: isReduceOnly,
+        }],
+        grouping: 'na',
+        builder: 
+          {
+            b: BUILDER_ADDRESS,
+            f: 50,
+          }
+      };
+
+      console.log('Attempting to place order with request:', JSON.stringify(orderRequest, null, 2));
+      const result = await sdk.exchange.placeOrder(orderRequest);
+      console.log('Order placement complete. Full result:', JSON.stringify(result, null, 2));
+      
       const error = result?.response?.data?.statuses?.[0]?.error;
       setTradeStatus(error ? `Failed to place order: ${error}` : "Order placed successfully!");
     } catch (error: any) {
+      console.error('Error details:', error);
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      if (error.response) {
+        console.error('Error response:', JSON.stringify(error.response, null, 2));
+      }
+      if (error.request) {
+        console.error('Error request:', JSON.stringify(error.request, null, 2));
+      }
       setTradeStatus(`Failed to place order: ${error.message ?? "Unknown error"}`);
     }
   };

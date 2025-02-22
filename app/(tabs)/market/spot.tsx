@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useSpotStore } from "@/store/useSpotStore";
 import { useRouter } from "expo-router";
+import { useSearchStore } from '@/store/useSearchStore';
 
 interface SortConfig {
   key: 'name' | 'price' | 'volume' | 'change';
@@ -18,6 +19,7 @@ interface SortConfig {
 const SpotInfoPage: React.FC = () => {
   const { tokens, isLoading, tokenMapping } = useSpotStore();
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
+  const { searchText } = useSearchStore();
   const router = useRouter();
 
   const handleNavigateToDetails = (id: string) => {
@@ -57,13 +59,17 @@ const SpotInfoPage: React.FC = () => {
     return sortConfig.direction === 'asc' ? ' ▲' : ' ▼';
   };
 
-  const sortedTokens = useMemo(() => {
-    const mappedTokens = tokens.map(token => ({
-      ...token,
-      name: tokenMapping[token.id] || token.id
-    }));
-    return sortData(mappedTokens);
-  }, [tokens, tokenMapping, sortConfig]);
+  const filteredAndSortedData = useMemo(() => {
+    let filtered = tokens;
+    if (searchText) {
+      const searchLower = searchText.toLowerCase();
+      filtered = tokens.filter(token => 
+        token.name.toLowerCase().includes(searchLower) ||
+        token.symbol?.toLowerCase().includes(searchLower)
+      );
+    }
+    return sortData(filtered);
+  }, [tokens, sortConfig, searchText]);
 
   const RenderToken = React.memo(({ item }: { item: typeof tokens[0] }) => (
     <TouchableOpacity onPress={() => handleNavigateToDetails(item.id)}>
@@ -95,37 +101,43 @@ const SpotInfoPage: React.FC = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity 
-          style={[styles.headerText, styles.nameColumn]} 
-          onPress={() => handleSort('name')}
-        >
-          <Text style={[styles.headerText, {textAlign: 'left'}]}>{`Name / Vol${getSortIcon('name')}`}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.headerText, styles.priceColumn]} 
-          onPress={() => handleSort('price')}
-        >
-          <Text style={[styles.headerText, {textAlign: 'right'}]}>{`Last Price${getSortIcon('price')}`}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.headerText, styles.changeColumn]} 
-          onPress={() => handleSort('change')}
-        >
-          <Text style={[styles.headerText, {textAlign: 'right'}]}>{`24h Chg%${getSortIcon('change')}`}</Text>
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={sortedTokens}
-        renderItem={({ item }) => <RenderToken item={item} />}
-        keyExtractor={(item) => item.id}
-        initialNumToRender={10}
-        getItemLayout={(data, index) => ({
-          length: 60,
-          offset: 60 * index,
-          index,
-        })}
-      />
+      {isLoading ? (
+        <ActivityIndicator size="large" color="#F0B90B" />
+      ) : (
+        <View>
+          <View style={styles.headerRow}>
+            <TouchableOpacity 
+              style={[styles.headerCell, styles.nameColumn]}
+              onPress={() => handleSort('name')}
+            >
+              <Text style={styles.headerText}>{`Name / Vol${getSortIcon('name')}`}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.headerCell, styles.priceColumn]}
+              onPress={() => handleSort('price')}
+            >
+              <Text style={styles.headerText}>{`Last Price${getSortIcon('price')}`}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.headerCell, styles.changeColumn]}
+              onPress={() => handleSort('change')}
+            >
+              <Text style={styles.headerText}>{`24h Chg%${getSortIcon('change')}`}</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={filteredAndSortedData}
+            renderItem={({ item }) => <RenderToken item={item} />}
+            keyExtractor={(item) => item.id}
+            initialNumToRender={10}
+            getItemLayout={(data, index) => ({
+              length: 60,
+              offset: 60 * index,
+              index,
+            })}
+          />
+        </View>
+      )}
     </View>
   );
 };
@@ -138,24 +150,25 @@ const styles = StyleSheet.create({
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 8,
+    paddingVertical: 4,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: "#2A2D3A",
   },
+  headerCell: {
+    flex: 1,
+  },
   headerText: {
-    fontSize: 13,
-    color: "#808A9D",
-    fontWeight: "500",
+    fontSize: 14,
+    color: '#808A9D',
+    fontWeight: '500',
   },
   nameColumn: {
     flex: 2,
-    alignItems: 'flex-start',
   },
   priceColumn: {
     flex: 1,
     alignItems: 'flex-end',
-    paddingRight: 2,
   },
   changeColumn: {
     flex: 1,
@@ -183,6 +196,7 @@ const styles = StyleSheet.create({
   },
   tokenPrice: {
     fontSize: 16,
+    paddingRight: 6,
     color: "#fff",
     fontWeight: "500",
     textAlign: "right",

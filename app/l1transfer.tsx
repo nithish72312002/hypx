@@ -9,7 +9,7 @@ import { useHyperliquid } from '@/context/HyperliquidContext';
 import { ethers } from 'ethers';
 import axios from 'axios';
 import {Toast} from '@/components/Toast';
-import SafeViewAndroid from "@/components/SafeViewAndroid/SafeViewAndroid";
+import   { CustomSafeArea } from "@/components/SafeViewAndroid/SafeViewAndroid";
 
 interface Balance {
   coin: string;
@@ -398,7 +398,7 @@ export default function L1TransferPage() {
   );
 
   return (
-    <SafeAreaView style={[SafeViewAndroid.AndroidSafeArea, styles.container]} >
+    <CustomSafeArea style={styles.container} >
       <Stack.Screen 
         options={{
           headerShown: false,
@@ -563,7 +563,7 @@ export default function L1TransferPage() {
           </Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </CustomSafeArea>
   );
 }
 

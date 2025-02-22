@@ -10,13 +10,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from "expo-router";
-import BottomSheet, { BottomSheetFlatList } from "@gorhom/bottom-sheet";
+import BottomSheet, { BottomSheetFlatList, BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Ionicons } from '@expo/vector-icons';
 import { useSpotStore } from "@/store/useSpotStore";
 import SpotTradingInterface from "@/components/tradinginterface/spottradinginterface";
 import SpotOrderBook from "@/components/orderbooks/spotOrderBook";
 import SpotTradeOpenOrdersHoldings from "@/components/openorders/OpenOrdersHoldingsTabs";
-import SafeViewAndroid from "@/components/SafeViewAndroid/SafeViewAndroid";
+import { CustomSafeArea } from '@/components/SafeViewAndroid/SafeViewAndroid';
 
 interface SpotTokenData {
   id: string;
@@ -56,11 +56,20 @@ const SpotPage: React.FC = () => {
     [spotTokens, searchQuery]
   );
 
-  const sheetRef = useRef<BottomSheet>(null);
+  const sheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["95%"], []);
 
-  const handleSnapPress = () => sheetRef.current?.snapToIndex(0);
-  const handleClosePress = () => sheetRef.current?.close();
+  const handleSnapPress = useCallback(() => {
+    if (sheetRef.current) {
+      sheetRef.current.present();
+    }
+  }, []);
+
+  const handleClosePress = useCallback(() => {
+    if (sheetRef.current) {
+      sheetRef.current.dismiss();
+    }
+  }, []);
 
   // When a token is selected, update both selectedSymbol (id) and sdkSymbol (name)
   const handleTokenSelect = useCallback((token: SpotTokenData) => {
@@ -107,7 +116,7 @@ const SpotPage: React.FC = () => {
   );
 
   return (
-    <SafeAreaView style={[SafeViewAndroid.AndroidSafeArea, styles.container]} >
+    <CustomSafeArea style={styles.container} >
       {/* Wrap all main content in a ScrollView */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Header displays the sdkSymbol (token name) */}
@@ -143,11 +152,11 @@ const SpotPage: React.FC = () => {
       </ScrollView>
 
       {/* Bottom Sheet remains absolutely positioned */}
-      <View style={StyleSheet.absoluteFillObject}>
-        <BottomSheet
+      <View >
+        <BottomSheetModal
           ref={sheetRef}
           snapPoints={snapPoints}
-          index={-1}
+          index={0}
           enablePanDownToClose
           enableDynamicSizing={false}
           backgroundStyle={{ backgroundColor: "#1E1E2F" }}
@@ -175,9 +184,9 @@ const SpotPage: React.FC = () => {
               />
             )}
           </View>
-        </BottomSheet>
+        </BottomSheetModal>
       </View>
-    </SafeAreaView>
+    </CustomSafeArea>
   );
 };
 
